@@ -1,3 +1,6 @@
+| :zap:        Complete replication package coming soon!        :zap: |
+|---------------------------------------------------------------------|
+
 # Replication Package for paper "Testing of Deep Reinforcement Learning Agents with Surrogate Models". 
 
 This Readme provides instructions on how to train agents for the three tasks from scratch and how to test them using the codebase.
