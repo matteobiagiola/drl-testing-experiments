@@ -1,0 +1,12 @@
+CartPole-v1:
+  n_envs: 1
+  n_timesteps: !!float 2e5
+  policy: 'MlpPolicy'
+  n_steps: 64
+  batch_size: 256
+  gae_lambda: 0.8
+  gamma: 0.98
+  n_epochs: 20
+  ent_coef: 0.0
+  learning_rate: lin_0.001
+  clip_range: lin_0.2

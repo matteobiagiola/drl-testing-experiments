@@ -1,5 +1,5 @@
 DonkeyVAE-v0:
- n_timesteps: !!float 1e6
+ n_timesteps: !!float 5e5
  frame_stack: 4
  policy: 'MlpPolicy'
  learning_rate: !!float 7.3e-4
@@ -9,9 +9,7 @@ DonkeyVAE-v0:
  target_entropy: -2
  gamma: 0.99
  tau: 0.02
- # train_freq: 64
  train_freq: [ 1, "episode" ]
- # gradient_steps: -1
  gradient_steps: 64
  learning_starts: 500
  use_sde_at_warmup: True

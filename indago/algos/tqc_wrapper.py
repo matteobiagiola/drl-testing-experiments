@@ -80,20 +80,27 @@ class TQCWrapper(TQC):
             if "device" in data["policy_kwargs"]:
                 del data["policy_kwargs"]["device"]
 
-        if "policy_kwargs" in kwargs and kwargs["policy_kwargs"] != data["policy_kwargs"]:
+        if (
+            "policy_kwargs" in kwargs
+            and kwargs["policy_kwargs"] != data["policy_kwargs"]
+        ):
             raise ValueError(
                 f"The specified policy kwargs do not equal the stored policy kwargs."
                 f"Stored kwargs: {data['policy_kwargs']}, specified kwargs: {kwargs['policy_kwargs']}"
             )
 
         if "observation_space" not in data or "action_space" not in data:
-            raise KeyError("The observation_space and action_space were not given, can't verify new environments")
+            raise KeyError(
+                "The observation_space and action_space were not given, can't verify new environments"
+            )
 
         if env is not None:
             # Wrap first if needed
             env = cls._wrap_env(env, data["verbose"])
             # Check if given env is valid
-            check_for_correct_spaces(env, data["observation_space"], data["action_space"])
+            check_for_correct_spaces(
+                env, data["observation_space"], data["action_space"]
+            )
         else:
             # Use stored env, if one exists. If not, continue as is (can be used for predict)
             if "env" in data:
@@ -140,7 +147,9 @@ class TQCWrapper(TQC):
 
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
-            replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+            replay_data = self.replay_buffer.sample(
+                batch_size, env=self._vec_normalize_env
+            )
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
@@ -156,7 +165,9 @@ class TQCWrapper(TQC):
                 # so we don't change it with other losses
                 # see https://github.com/rail-berkeley/softlearning/issues/60
                 ent_coef = th.exp(self.log_ent_coef.detach())
-                ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
+                ent_coef_loss = -(
+                    self.log_ent_coef * (log_prob + self.target_entropy).detach()
+                ).mean()
                 ent_coef_losses.append(ent_coef_loss.item())
             else:
                 ent_coef = self.ent_coef_tensor
@@ -173,29 +184,45 @@ class TQCWrapper(TQC):
 
             with th.no_grad():
                 # Select action according to policy
-                next_actions, next_log_prob = self.actor.action_log_prob(replay_data.next_observations)
+                next_actions, next_log_prob = self.actor.action_log_prob(
+                    replay_data.next_observations
+                )
                 stddev = self.actor.action_dist.distribution.stddev
                 stddev = stddev.cpu().numpy().squeeze().tolist()
 
                 # Compute and cut quantiles at the next state
                 # batch x nets x quantiles
-                next_quantiles = self.critic_target(replay_data.next_observations, next_actions)
+                next_quantiles = self.critic_target(
+                    replay_data.next_observations, next_actions
+                )
 
                 # Sort and drop top k quantiles to control overestimation.
-                n_target_quantiles = self.critic.quantiles_total - self.top_quantiles_to_drop_per_net * self.critic.n_critics
+                n_target_quantiles = (
+                    self.critic.quantiles_total
+                    - self.top_quantiles_to_drop_per_net * self.critic.n_critics
+                )
                 next_quantiles, _ = th.sort(next_quantiles.reshape(batch_size, -1))
                 next_quantiles = next_quantiles[:, :n_target_quantiles]
 
                 # td error + entropy term
-                target_quantiles = next_quantiles - ent_coef * next_log_prob.reshape(-1, 1)
-                target_quantiles = replay_data.rewards + (1 - replay_data.dones) * self.gamma * target_quantiles
+                target_quantiles = next_quantiles - ent_coef * next_log_prob.reshape(
+                    -1, 1
+                )
+                target_quantiles = (
+                    replay_data.rewards
+                    + (1 - replay_data.dones) * self.gamma * target_quantiles
+                )
                 # Make target_quantiles broadcastable to (batch_size, n_critics, n_target_quantiles).
                 target_quantiles.unsqueeze_(dim=1)
 
             # Get current Quantile estimates using action from the replay buffer
-            current_quantiles = self.critic(replay_data.observations, replay_data.actions)
+            current_quantiles = self.critic(
+                replay_data.observations, replay_data.actions
+            )
             # Compute critic loss, not summing over the quantile dimension as in the paper.
-            critic_loss = quantile_huber_loss(current_quantiles, target_quantiles, sum_over_quantiles=False)
+            critic_loss = quantile_huber_loss(
+                current_quantiles, target_quantiles, sum_over_quantiles=False
+            )
             critic_losses.append(critic_loss.item())
 
             # Optimize the critic
@@ -204,7 +231,11 @@ class TQCWrapper(TQC):
             self.critic.optimizer.step()
 
             # Compute actor loss
-            qf_pi = self.critic(replay_data.observations, actions_pi).mean(dim=2).mean(dim=1, keepdim=True)
+            qf_pi = (
+                self.critic(replay_data.observations, actions_pi)
+                .mean(dim=2)
+                .mean(dim=1, keepdim=True)
+            )
             actor_loss = (ent_coef * log_prob - qf_pi).mean()
             actor_losses.append(actor_loss.item())
 
@@ -215,21 +246,25 @@ class TQCWrapper(TQC):
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
-                polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
+                polyak_update(
+                    self.critic.parameters(), self.critic_target.parameters(), self.tau
+                )
 
         self._n_updates += gradient_steps
 
         agent_state = dict()
-        agent_state["training_progress"] = (self.num_timesteps / self._total_timesteps) * 100
+        agent_state["training_progress"] = (
+            self.num_timesteps / self._total_timesteps
+        ) * 100
         agent_state["ent_coef"] = ent_coef.item()
 
         env_unwrapped = self.get_env().unwrapped
         while not isinstance(env_unwrapped, DummyCVecEnv):
             env_unwrapped = env_unwrapped.unwrapped
 
-        assert isinstance(env_unwrapped.envs[0].env, EnvWrapper), "{} is not an instance of EnvWrapper".format(
-            type(env_unwrapped.envs[0].env)
-        )
+        assert isinstance(
+            env_unwrapped.envs[0].env, EnvWrapper
+        ), "{} is not an instance of EnvWrapper".format(type(env_unwrapped.envs[0].env))
         env_unwrapped.envs[0].env.send_agent_state(agent_state=agent_state)
 
         # self.env.unwrapped.send_agent_state(agent_state=agent_state)

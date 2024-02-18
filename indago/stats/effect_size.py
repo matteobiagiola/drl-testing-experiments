@@ -108,6 +108,8 @@ def vargha_delaney(a: List[float], b: List[float]) -> Tuple[float, str]:
 
     # Compute the measure
     # A = (r1/m - (m+1)/2)/n # formula (14) in Vargha and Delaney, 2000
-    A = (2 * r1 - m * (m + 1)) / (2 * n * m)  # equivalent formula to avoid accuracy errors
+    A = (2 * r1 - m * (m + 1)) / (
+        2 * n * m
+    )  # equivalent formula to avoid accuracy errors
 
     return A, _compute_magnitude_vargha_delaney(a12=A)

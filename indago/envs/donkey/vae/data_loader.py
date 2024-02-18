@@ -44,7 +44,9 @@ from indago.config import IMAGE_HEIGHT, IMAGE_WIDTH, ROI
 def get_image_sample(image_path: str, reshape: bool = True) -> np.ndarray:
     im = cv2.imread(image_path)
     if im is None:
-        raise ValueError("tried to load {}.jpg, but it was not found".format(image_path))
+        raise ValueError(
+            "tried to load {}.jpg, but it was not found".format(image_path)
+        )
 
     return preprocess_raw_image(image=im, reshape=reshape)
 
@@ -83,7 +85,9 @@ def preprocess_input(x, mode="rl"):
         x -= 0.5
         x *= 2.0
     elif mode == "image_net":
-        assert x.shape[-1] == 3, "Color channel must be at the end of the tensor {}".format(x.shape)
+        assert (
+            x.shape[-1] == 3
+        ), "Color channel must be at the end of the tensor {}".format(x.shape)
         # Zero-center by mean pixel
         x[..., 0] -= 0.485
         x[..., 1] -= 0.456
@@ -145,7 +149,9 @@ def preprocess_image(image, convert_to_rgb=False, normalize=True, roi: bool = Tr
         r = ROI
         image = image[int(r[1]) : int(r[1] + r[3]), int(r[0]) : int(r[0] + r[2])]
         # Resize
-        im = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
+        im = cv2.resize(
+            image, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA
+        )
     # im = np.moveaxis(im, 2, 0)
     # Convert BGR to RGB
     if convert_to_rgb:
@@ -218,7 +224,13 @@ class RandomShadows(iaa.meta.Augmenter):
 
     @staticmethod
     def process(
-        img, high_ratio, low_ratio, left_low_ratio, left_high_ratio, right_low_ratio, right_high_ratio,
+        img,
+        high_ratio,
+        low_ratio,
+        left_low_ratio,
+        left_high_ratio,
+        right_low_ratio,
+        right_high_ratio,
     ):
 
         img = Image.fromarray(img)
@@ -228,9 +240,15 @@ class RandomShadows(iaa.meta.Augmenter):
         low_bright_factor = random.uniform(low_ratio[0], low_ratio[1])
 
         left_low_factor = random.uniform(left_low_ratio[0] * h, left_low_ratio[1] * h)
-        left_high_factor = random.uniform(left_high_ratio[0] * h, left_high_ratio[1] * h)
-        right_low_factor = random.uniform(right_low_ratio[0] * h, right_low_ratio[1] * h)
-        right_high_factor = random.uniform(right_high_ratio[0] * h, right_high_ratio[1] * h)
+        left_high_factor = random.uniform(
+            left_high_ratio[0] * h, left_high_ratio[1] * h
+        )
+        right_low_factor = random.uniform(
+            right_low_ratio[0] * h, right_low_ratio[1] * h
+        )
+        right_high_factor = random.uniform(
+            right_high_ratio[0] * h, right_high_ratio[1] * h
+        )
 
         tl = (0, left_high_factor)
         bl = (0, left_high_factor + left_low_factor)
@@ -325,7 +343,9 @@ class DataLoader(object):
 
     def _run(self):
         start = True
-        with Parallel(n_jobs=self.n_workers, batch_size="auto", backend="threading") as parallel:
+        with Parallel(
+            n_jobs=self.n_workers, batch_size="auto", backend="threading"
+        ) as parallel:
             while start or self.infinite_loop:
                 start = False
 
@@ -339,15 +359,27 @@ class DataLoader(object):
                     images = self.images[self.minibatchlist[minibatch_idx]]
 
                     if self.n_workers <= 1:
-                        batch = [self._make_batch_element(image, self.augmenter, self.image_path) for image in images]
+                        batch = [
+                            self._make_batch_element(
+                                image, self.augmenter, self.image_path
+                            )
+                            for image in images
+                        ]
 
                     else:
                         batch = parallel(
-                            delayed(self._make_batch_element)(image, self.augmenter, self.image_path) for image in images
+                            delayed(self._make_batch_element)(
+                                image, self.augmenter, self.image_path
+                            )
+                            for image in images
                         )
 
-                    batch_input = np.concatenate([batch_elem[0] for batch_elem in batch], axis=0)
-                    batch_target = np.concatenate([batch_elem[1] for batch_elem in batch], axis=0)
+                    batch_input = np.concatenate(
+                        [batch_elem[0] for batch_elem in batch], axis=0
+                    )
+                    batch_target = np.concatenate(
+                        [batch_elem[1] for batch_elem in batch], axis=0
+                    )
 
                     if self.shuffle:
                         self.queue.put((minibatch_idx, batch_input, batch_target))
@@ -369,7 +401,9 @@ class DataLoader(object):
         if image_path:
             im = cv2.imread(image)
             if im is None:
-                raise ValueError("tried to load {}.jpg, but it was not found".format(image))
+                raise ValueError(
+                    "tried to load {}.jpg, but it was not found".format(image)
+                )
         else:
             im = image
 
@@ -377,7 +411,9 @@ class DataLoader(object):
         target_img = target_img.reshape((1,) + target_img.shape)
 
         if augmenter is not None:
-            preprocessed_image = preprocess_image(im.astype(np.float32), normalize=False)
+            preprocessed_image = preprocess_image(
+                im.astype(np.float32), normalize=False
+            )
             input_img = augmenter.augment_image(preprocessed_image)
             # Normalize
             input_img = preprocess_input(input_img.astype(np.float32), mode="rl")

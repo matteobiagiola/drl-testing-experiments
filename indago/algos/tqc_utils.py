@@ -58,12 +58,17 @@ def quantile_huber_loss(
             f"the batch size of target_quantiles ({target_quantiles.shape[0]})."
         )
     if current_quantiles.ndim not in (2, 3):
-        raise ValueError(f"Error: The dimension of current_quantiles ({current_quantiles.ndim}) needs to be either 2 or 3.")
+        raise ValueError(
+            f"Error: The dimension of current_quantiles ({current_quantiles.ndim}) needs to be either 2 or 3."
+        )
 
     if cum_prob is None:
         n_quantiles = current_quantiles.shape[-1]
         # Cumulative probabilities to calculate quantiles.
-        cum_prob = (th.arange(n_quantiles, device=current_quantiles.device, dtype=th.float) + 0.5) / n_quantiles
+        cum_prob = (
+            th.arange(n_quantiles, device=current_quantiles.device, dtype=th.float)
+            + 0.5
+        ) / n_quantiles
         if current_quantiles.ndim == 2:
             # For QR-DQN, current_quantiles have a shape (batch_size, n_quantiles), and make cum_prob
             # broadcastable to (batch_size, n_quantiles, n_target_quantiles)
@@ -84,7 +89,9 @@ def quantile_huber_loss(
     # Note: in both cases, the loss has the same shape as pairwise_delta
     pairwise_delta = target_quantiles.unsqueeze(-2) - current_quantiles.unsqueeze(-1)
     abs_pairwise_delta = th.abs(pairwise_delta)
-    huber_loss = th.where(abs_pairwise_delta > 1, abs_pairwise_delta - 0.5, pairwise_delta ** 2 * 0.5)
+    huber_loss = th.where(
+        abs_pairwise_delta > 1, abs_pairwise_delta - 0.5, pairwise_delta**2 * 0.5
+    )
     loss = th.abs(cum_prob - (pairwise_delta.detach() < 0).float()) * huber_loss
     if sum_over_quantiles:
         loss = loss.sum(dim=-2).mean()

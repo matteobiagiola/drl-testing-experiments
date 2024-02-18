@@ -82,7 +82,9 @@ class VAE(nn.Module, metaclass=abc.ABCMeta):
 
         self.encoder = nn.Sequential(
             PreProcessImage(),
-            nn.Conv2d(in_channels=in_channels, out_channels=32, kernel_size=4, stride=2),
+            nn.Conv2d(
+                in_channels=in_channels, out_channels=32, kernel_size=4, stride=2
+            ),
             nn.ReLU(),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
             nn.ReLU(),
@@ -104,16 +106,24 @@ class VAE(nn.Module, metaclass=abc.ABCMeta):
         self.decoder_input = nn.Linear(latent_dim, n_flatten)
 
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(
+                in_channels=256, out_channels=128, kernel_size=4, stride=2
+            ),
             nn.ReLU(),
-            nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(
+                in_channels=128, out_channels=64, kernel_size=4, stride=2
+            ),
             nn.ReLU(),
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=5, stride=2),
+            nn.ConvTranspose2d(
+                in_channels=64, out_channels=32, kernel_size=5, stride=2
+            ),
             nn.ReLU(),
         )
 
         self.final_layer = nn.Sequential(
-            nn.ConvTranspose2d(in_channels=32, out_channels=in_channels, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(
+                in_channels=32, out_channels=in_channels, kernel_size=4, stride=2
+            ),
             PostProcessImage(),
             nn.Sigmoid(),
         )
@@ -173,7 +183,9 @@ class VAE(nn.Module, metaclass=abc.ABCMeta):
     ) -> Tuple[np.ndarray, float]:
 
         with torch.no_grad():
-            observation = preprocess_image(image=observation, roi=roi, convert_to_rgb=convert_to_rgb)
+            observation = preprocess_image(
+                image=observation, roi=roi, convert_to_rgb=convert_to_rgb
+            )
             # r = ROI
             # image = image[int(r[1]):int(r[1] + r[3]), int(r[0]):int(r[0] + r[2])]
             # Convert RGB to BGR
@@ -217,7 +229,7 @@ class VAE(nn.Module, metaclass=abc.ABCMeta):
         recons_loss = F.mse_loss(recons, input, reduction="sum")
 
         # kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
-        kld_loss = -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1)
+        kld_loss = -0.5 * torch.sum(1 + log_var - mu**2 - log_var.exp(), dim=1)
         if self.kl_tolerance > 0:
             scalar = torch.FloatTensor([self.kl_tolerance * self.latent_dim]).to(DEVICE)
             kld_loss = torch.maximum(kld_loss, scalar.expand_as(kld_loss))
@@ -257,7 +269,9 @@ class VAE(nn.Module, metaclass=abc.ABCMeta):
 
     def load(self, filepath, load_on_device: bool = False) -> nn.Module:
         if load_on_device:
-            self.load_state_dict(torch.load(filepath, map_location=torch.device(DEVICE)))
+            self.load_state_dict(
+                torch.load(filepath, map_location=torch.device(DEVICE))
+            )
         else:
             self.load_state_dict(torch.load(filepath, map_location=torch.device("cpu")))
         self.eval()

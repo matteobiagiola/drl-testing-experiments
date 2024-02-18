@@ -84,7 +84,8 @@ class SDClient:
             self.s.connect((self.host, self.port))
         except ConnectionRefusedError as e:
             raise Exception(
-                "Could not connect to server. Is it running? " "If you specified 'remote', then you must start it manually."
+                "Could not connect to server. Is it running? "
+                "If you specified 'remote', then you must start it manually."
             )
 
         # time.sleep(pause_on_create)
@@ -171,13 +172,20 @@ class SDClient:
                             if last_char == "}":
                                 if partial[0][0] == "{":
                                     assembled_packet = "".join(partial)
-                                    assembled_packet = replace_float_notation(assembled_packet)
+                                    assembled_packet = replace_float_notation(
+                                        assembled_packet
+                                    )
                                     second_open = assembled_packet.find('{"msg', 1)
                                     if second_open != -1:
                                         # hmm what to do? We have a partial packet. Trimming just
                                         # the good part and discarding the rest.
-                                        print("got partial packet:" + assembled_packet[:20])
-                                        assembled_packet = assembled_packet[second_open:]
+                                        print(
+                                            "got partial packet:"
+                                            + assembled_packet[:20]
+                                        )
+                                        assembled_packet = assembled_packet[
+                                            second_open:
+                                        ]
 
                                     try:
                                         j = json.loads(assembled_packet)

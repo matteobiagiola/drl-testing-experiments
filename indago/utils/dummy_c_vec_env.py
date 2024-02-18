@@ -4,8 +4,17 @@ from typing import Any, Callable, List, Optional, Sequence, Type, Union
 
 import gym
 import numpy as np
-from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices, VecEnvObs, VecEnvStepReturn
-from stable_baselines3.common.vec_env.util import copy_obs_dict, dict_to_obs, obs_space_info
+from stable_baselines3.common.vec_env.base_vec_env import (
+    VecEnv,
+    VecEnvIndices,
+    VecEnvObs,
+    VecEnvStepReturn,
+)
+from stable_baselines3.common.vec_env.util import (
+    copy_obs_dict,
+    dict_to_obs,
+    obs_space_info,
+)
 
 from indago.env_wrapper import EnvWrapper
 
@@ -29,7 +38,12 @@ class DummyCVecEnv(VecEnv):
         obs_space = env.observation_space
         self.keys, shapes, dtypes = obs_space_info(obs_space)
 
-        self.buf_obs = OrderedDict([(k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k])) for k in self.keys])
+        self.buf_obs = OrderedDict(
+            [
+                (k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]))
+                for k in self.keys
+            ]
+        )
         self.buf_dones = np.zeros((self.num_envs,), dtype=bool)
         self.buf_rews = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
@@ -41,9 +55,12 @@ class DummyCVecEnv(VecEnv):
 
     def step_wait(self) -> VecEnvStepReturn:
         for env_idx in range(self.num_envs):
-            obs, self.buf_rews[env_idx], self.buf_dones[env_idx], self.buf_infos[env_idx] = self.envs[env_idx].step(
-                self.actions[env_idx]
-            )
+            (
+                obs,
+                self.buf_rews[env_idx],
+                self.buf_dones[env_idx],
+                self.buf_infos[env_idx],
+            ) = self.envs[env_idx].step(self.actions[env_idx])
             if self.buf_dones[env_idx]:
                 # save final observation where user can get it, then reset
                 self.buf_infos[env_idx]["terminal_observation"] = obs
@@ -52,7 +69,12 @@ class DummyCVecEnv(VecEnv):
                 else:
                     obs = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones), deepcopy(self.buf_infos)
+        return (
+            self._obs_from_buf(),
+            np.copy(self.buf_rews),
+            np.copy(self.buf_dones),
+            deepcopy(self.buf_infos),
+        )
 
     def seed(self, seed: Optional[int] = None) -> List[Union[None, int]]:
         seeds = list()
@@ -105,18 +127,31 @@ class DummyCVecEnv(VecEnv):
         target_envs = self._get_target_envs(indices)
         return [getattr(env_i, attr_name) for env_i in target_envs]
 
-    def set_attr(self, attr_name: str, value: Any, indices: VecEnvIndices = None) -> None:
+    def set_attr(
+        self, attr_name: str, value: Any, indices: VecEnvIndices = None
+    ) -> None:
         """Set attribute inside vectorized environments (see base class)."""
         target_envs = self._get_target_envs(indices)
         for env_i in target_envs:
             setattr(env_i, attr_name, value)
 
-    def env_method(self, method_name: str, *method_args, indices: VecEnvIndices = None, **method_kwargs) -> List[Any]:
+    def env_method(
+        self,
+        method_name: str,
+        *method_args,
+        indices: VecEnvIndices = None,
+        **method_kwargs
+    ) -> List[Any]:
         """Call instance methods of vectorized environments."""
         target_envs = self._get_target_envs(indices)
-        return [getattr(env_i, method_name)(*method_args, **method_kwargs) for env_i in target_envs]
+        return [
+            getattr(env_i, method_name)(*method_args, **method_kwargs)
+            for env_i in target_envs
+        ]
 
-    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
+    def env_is_wrapped(
+        self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None
+    ) -> List[bool]:
         """Check if worker environments are wrapped with a given wrapper"""
         target_envs = self._get_target_envs(indices)
         # Import here to avoid a circular import

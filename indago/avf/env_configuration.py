@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import numpy as np
 
@@ -45,17 +45,24 @@ class EnvConfiguration(ABC):
         raise NotImplementedError("Not implemented error")
 
     @abstractmethod
-    def mutate_hot(self, attributions: np.ndarray, mapping: Dict) -> Optional["EnvConfiguration"]:
+    def mutate_hot(
+        self, attributions: np.ndarray, mapping: Dict, minimize: bool
+    ) -> Optional["EnvConfiguration"]:
         raise NotImplementedError("Not implemented error")
 
     @abstractmethod
-    def crossover(self, other_env_config: "EnvConfiguration", pos1: int, pos2: int) -> Optional["EnvConfiguration"]:
+    def crossover(
+        self, other_env_config: "EnvConfiguration", pos1: int, pos2: int
+    ) -> Optional["EnvConfiguration"]:
         raise NotImplementedError("Not implemented error")
 
     def get_key_to_mutate(self, idx_to_mutate: int, mapping: Dict) -> str:
-        keys_to_mutate = list(filter(lambda key: idx_to_mutate in mapping[key], mapping.keys()))
-        # print(idx_to_mutate, keys_to_mutate, attributions, attributions[idx_to_mutate])
-        assert len(keys_to_mutate) == 1, "There must be only one key where the attribution is max ({}). Found: {}".format(
+        keys_to_mutate = list(
+            filter(lambda key: idx_to_mutate in mapping[key], mapping.keys())
+        )
+        assert (
+            len(keys_to_mutate) == 1
+        ), "There must be only one key where the attribution is max ({}). Found: {}".format(
             idx_to_mutate, len(keys_to_mutate)
         )
         key_to_mutate = keys_to_mutate[0]

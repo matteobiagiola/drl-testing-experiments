@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from indago.avf.ga.chromsome import Chromosome
+from indago.avf.ga.chromosome import Chromosome
 
 
 class StoppingCriterion(ABC):

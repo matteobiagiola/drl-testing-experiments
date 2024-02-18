@@ -1,5 +1,5 @@
 Humanoid-v0:
-  n_timesteps: !!float 1500000
+  n_timesteps: !!float 300000
   policy: 'MlpPolicy'
   learning_rate: lin_7.3e-4
   buffer_size: 300000
@@ -12,5 +12,4 @@ Humanoid-v0:
   learning_starts: 1000
   top_quantiles_to_drop_per_net: 5
   use_sde: True
-#  policy_kwargs: "dict(log_std_init=-3, net_arch=[400, 300])"
-  policy_kwargs: "dict(log_std_init=-3, net_arch=[64, 64])"
+  policy_kwargs: "dict(log_std_init=-3, net_arch=[400, 300])"

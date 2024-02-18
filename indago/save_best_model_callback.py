@@ -49,7 +49,7 @@ class SaveBestModelCallback(BaseCallback):
         normalize_kwargs: Dict = None,
         n_eval_episodes: int = 1,
         deterministic: bool = True,
-        avf: Avf = None
+        avf: Avf = None,
     ):
         super(SaveBestModelCallback, self).__init__(verbose)
 
@@ -88,12 +88,13 @@ class SaveBestModelCallback(BaseCallback):
             x_ep_lengths, y_ep_lengths = ts2xy(load_results(self.log_dir), X_EPISODES)
 
             x_success_rates, y_success_rates = [], []
-            x_success_rates, y_success_rates = ts2xy(load_results(self.log_dir), X_SUCCESS)
+            x_success_rates, y_success_rates = ts2xy(
+                load_results(self.log_dir), X_SUCCESS
+            )
 
-            # self._logger.debug('x_rewards: {}, y_rewards: {}'.format(x_rewards, y_rewards))
-            # self._logger.debug('x_ep_lengths: {}, y_ep_lengths: {}'.format(x_ep_lengths, y_ep_lengths))
-
-            mean_reward = np.mean(y_rewards[-100:])
+            mean_reward = (
+                np.mean(y_rewards[-100:]) if len(y_rewards[-100:]) > 0 else 0.0
+            )
             if self.verbose > 0:
                 self._logger.debug("Num timesteps: {}".format(self.num_timesteps))
                 self._logger.debug(
@@ -101,18 +102,33 @@ class SaveBestModelCallback(BaseCallback):
                         self.best_mean_reward, mean_reward
                     )
                 )
-                mean_success_rate = np.mean(y_success_rates[-100:])
+                mean_success_rate = (
+                    np.mean(y_success_rates[-100:])
+                    if len(y_success_rates[-100:]) > 0
+                    else 0.0
+                )
                 self._logger.debug(
                     "Best mean success rate: {:.2f} "
-                    "- Last mean success rate per episode: {:.2f}".format(self.best_mean_success_rate, mean_success_rate)
+                    "- Last mean success rate per episode: {:.2f}".format(
+                        self.best_mean_success_rate, mean_success_rate
+                    )
                 )
 
-            mean_success_rate = np.mean(y_success_rates[-100:])
+            mean_success_rate = (
+                np.mean(y_success_rates[-100:])
+                if len(y_success_rates[-100:]) > 0
+                else 0.0
+            )
             # assuming that the agent keeps improving with time
-            if mean_success_rate >= self.best_mean_success_rate or mean_reward > self.best_mean_reward:
+            if (
+                mean_success_rate >= self.best_mean_success_rate
+                or mean_reward > self.best_mean_reward
+            ):
                 self.best_mean_success_rate = mean_success_rate
                 if self.verbose > 0:
-                    self._logger.debug("Saving new best model to {}".format(self.save_path))
+                    self._logger.debug(
+                        "Saving new best model to {}".format(self.save_path)
+                    )
                 self.model.save(self.save_path)
 
             if mean_reward > self.best_mean_reward:
@@ -120,12 +136,16 @@ class SaveBestModelCallback(BaseCallback):
 
             if self.save_checkpoint_interval == self.count_log_interval:
                 self.count_log_interval = 0
-                save_path = os.path.join(self.log_dir, "model-checkpoint-{}".format(self.num_timesteps))
+                save_path = os.path.join(
+                    self.log_dir, "model-checkpoint-{}".format(self.num_timesteps)
+                )
                 self._logger.info("Saving best model checkpoint: {}".format(save_path))
                 self.model.save(save_path)
 
             if self.avf is not None:
-                all_indices_failure_configs = list(np.arange(0, len(self.avf.failure_test_env_configs)))
+                all_indices_failure_configs = list(
+                    np.arange(0, len(self.avf.failure_test_env_configs))
+                )
                 set_indices_selected = set(self.avf.indices_data_selected)
                 indices_episode_successful = set()
                 # Some algorithms have a warmup start in which they only carry out random actions. Such episodes
@@ -144,26 +164,38 @@ class SaveBestModelCallback(BaseCallback):
                         # only "difficult" configurations are yet to be learned)
                         self.avf.weights_data[index] = 0.2
 
-                self.indices_failing_configurations = \
-                    set(all_indices_failure_configs).difference(indices_episode_successful)
+                self.indices_failing_configurations = set(
+                    all_indices_failure_configs
+                ).difference(indices_episode_successful)
 
-                self._logger.info("Number of successful configurations {}/{}".format(
-                    len(indices_episode_successful), len(all_indices_failure_configs))
+                self._logger.info(
+                    "Number of successful configurations {}/{}".format(
+                        len(indices_episode_successful),
+                        len(all_indices_failure_configs),
+                    )
                 )
-                self._logger.info("Number of failing configurations {}/{}".format(
-                    len(self.indices_failing_configurations), len(all_indices_failure_configs))
+                self._logger.info(
+                    "Number of failing configurations {}/{}".format(
+                        len(self.indices_failing_configurations),
+                        len(all_indices_failure_configs),
+                    )
                 )
 
                 if len(indices_episode_successful) > self.num_successful_episodes:
                     if self.verbose > 0:
-                        self._logger.debug("Saving new best model to {}".format(self.save_path))
+                        self._logger.debug(
+                            "Saving new best model to {}".format(self.save_path)
+                        )
                     self.model.save(self.save_path)
                     self.num_successful_episodes = len(indices_episode_successful)
 
-                if len(set_indices_selected.intersection(set(all_indices_failure_configs))) \
-                        == len(all_indices_failure_configs):
+                if len(
+                    set_indices_selected.intersection(set(all_indices_failure_configs))
+                ) == len(all_indices_failure_configs):
 
-                    if len(indices_episode_successful) == len(all_indices_failure_configs):
+                    if len(indices_episode_successful) == len(
+                        all_indices_failure_configs
+                    ):
                         self._logger.info(
                             "In all configurations the agent is successful. Aborting training."
                         )

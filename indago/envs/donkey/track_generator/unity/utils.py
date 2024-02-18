@@ -21,20 +21,31 @@ def has_loops(track_points: List[TrackPoint]) -> int:
         tp_1 = track_points[i]
         for j in range(i + 1, len(track_points)):
             tp_2 = track_points[j]
-            if math.isclose(abs(tp_1.x - tp_2.x), 0.0, abs_tol=1.0) and math.isclose(abs(tp_1.y - tp_2.y), 0.0, abs_tol=1.0):
+            if math.isclose(abs(tp_1.x - tp_2.x), 0.0, abs_tol=1.0) and math.isclose(
+                abs(tp_1.y - tp_2.y), 0.0, abs_tol=1.0
+            ):
                 num_duplicates += 1
     return num_duplicates
 
 
 def compute_direction(
-    first_point: TrackPoint, second_point: TrackPoint, last_but_one_point: TrackPoint, last_point: TrackPoint
+    first_point: TrackPoint,
+    second_point: TrackPoint,
+    last_but_one_point: TrackPoint,
+    last_point: TrackPoint,
 ) -> float:
-    v1 = np.asarray([second_point.x, second_point.y]) - np.asarray([first_point.x, first_point.y])
-    v2 = np.asarray([last_point.x, last_point.y]) - np.asarray([last_but_one_point.x, last_but_one_point.y])
+    v1 = np.asarray([second_point.x, second_point.y]) - np.asarray(
+        [first_point.x, first_point.y]
+    )
+    v2 = np.asarray([last_point.x, last_point.y]) - np.asarray(
+        [last_but_one_point.x, last_but_one_point.y]
+    )
     unit1 = v1 / np.linalg.norm(v1)
     unit2 = v2 / np.linalg.norm(v2)
     dot_product = round(np.dot(unit1, unit2), 2)
-    assert -1 <= dot_product <= 1, "Arccos not defined for the dot_product {}".format(dot_product)
+    assert -1 <= dot_product <= 1, "Arccos not defined for the dot_product {}".format(
+        dot_product
+    )
     return np.degrees(np.arccos(dot_product))
 
 
@@ -52,7 +63,9 @@ def track_closed(track_points: List[TrackPoint]) -> float:
     return compute_distance(tp_1=first_track_point, tp_2=last_track_point)
 
 
-def get_track_points(track_elements: List[TrackElem], consider_dy_segments: bool = False) -> List[TrackPoint]:
+def get_track_points(
+    track_elements: List[TrackElem], consider_dy_segments: bool = False
+) -> List[TrackPoint]:
     """
     Copyright (c) 2017, Tawn Kramer
     All rights reserved.
@@ -109,7 +122,13 @@ def get_track_points(track_elements: List[TrackElem], consider_dy_segments: bool
                 dy = 0.0
 
             if consider_dy_segments and track_script_element.num_to_set == 0:
-                track_points.append(TrackPoint(x=track_points[-1].x, y=track_points[-1].y, num_segment=num_segments))
+                track_points.append(
+                    TrackPoint(
+                        x=track_points[-1].x,
+                        y=track_points[-1].y,
+                        num_segment=num_segments,
+                    )
+                )
 
             for i in range(track_script_element.num_to_set):
                 track_points.append(TrackPoint(x=s.x, y=s.z, num_segment=num_segments))

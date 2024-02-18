@@ -1,12 +1,12 @@
 import time
-from typing import Tuple
+from typing import Tuple, List
 
 import gym
 import numpy as np
 
 from indago.avf.config import AVF_DNN_POLICIES, FILTER_FAILURE_BASED_APPROACHES
 from indago.avf.env_configuration import EnvConfiguration
-from indago.config import DONKEY_ENV_NAME, PARK_ENV_NAME
+from indago.config import DONKEY_ENV_NAME
 from indago.env_wrapper import EnvWrapper
 from indago.utils.dummy_c_vec_env import DummyCVecEnv
 from indago.utils.policy_utils import instantiate_trained_policy
@@ -20,6 +20,7 @@ class ExpConfigurator:
         env_id: str,
         seed: int = -1,
         regression: bool = False,
+        minimize: bool = False,
         num_envs: int = 1,
         folder: str = "logs",
         algo: str = "sac",
@@ -49,14 +50,17 @@ class ExpConfigurator:
         budget: int = -1,
         population_size: int = -1,
         crossover_rate: float = -1.0,
-        resume_dir: str = None
+        resume_dir: str = None,
+        remove_road_constraints: bool = False,
     ):
 
         self.logger = Log("ExpConfigurator")
 
         self.env_name = env_name
         self.num_envs = num_envs
-        assert self.num_envs == 1, "Num envs must be = 1. Found: {}".format(self.num_envs)
+        assert self.num_envs == 1, "Num envs must be = 1. Found: {}".format(
+            self.num_envs
+        )
         self.folder = folder
         self.algo = algo
         self.env_id = env_id
@@ -77,7 +81,17 @@ class ExpConfigurator:
         self.num_episodes = num_episodes
         self.num_runs_each_env_config = num_runs_each_env_config
         self.regression = regression
-        self.exp_name = exp_name
+        self.minimize = minimize
+        self.exp_name = None
+        self.other_exp_name = None
+
+        if exp_name is None or len(exp_name.split("-")) == 2:
+            self.exp_name = exp_name
+        elif exp_name is not None and len(exp_name.split("-")) > 2:
+            # {}-{}-trial
+            self.other_exp_name = exp_name.split("-")[0]
+            self.exp_name = exp_name[exp_name.index("-") + 1 :]
+
         self.vae_path = vae_path
         self.add_to_port = add_to_port
         self.simulation_mul = simulation_mul
@@ -89,12 +103,15 @@ class ExpConfigurator:
         self.population_size = population_size
         self.crossover_rate = crossover_rate
         self.resume_dir = resume_dir
+        self.remove_road_constraints = remove_road_constraints
 
         self.testing_strategy = self.avf_test_policy
         if self.avf_test_policy == "random":
             self.testing_strategy = "random"
         elif self.avf_test_policy == "prioritized_replay":
-            self.testing_strategy = "{}-{}".format(self.avf_test_policy, self.training_progress_filter)
+            self.testing_strategy = "{}-{}".format(
+                self.avf_test_policy, self.training_progress_filter
+            )
         elif self.avf_test_policy == "nn":
             self.testing_strategy = "{}-{}-{}-{}-{}-{}-{}".format(
                 self.avf_train_policy,
@@ -117,7 +134,11 @@ class ExpConfigurator:
             self.testing_strategy = "{}-{}-{}-{}-{}-{}-{}-{}".format(
                 self.avf_train_policy,
                 self.avf_test_policy,
-                self.training_progress_filter if "failure" not in self.avf_test_policy else FILTER_FAILURE_BASED_APPROACHES,
+                (
+                    self.training_progress_filter
+                    if "failure" not in self.avf_test_policy
+                    else FILTER_FAILURE_BASED_APPROACHES
+                ),
                 self.oversample_minority_class_percentage,
                 self.layers,
                 self.neighborhood_size,
@@ -129,7 +150,11 @@ class ExpConfigurator:
             self.testing_strategy = "{}-{}-{}-{}-{}-{}-{}".format(
                 self.avf_train_policy,
                 self.avf_test_policy,
-                self.training_progress_filter if "failure" not in self.avf_test_policy else FILTER_FAILURE_BASED_APPROACHES,
+                (
+                    self.training_progress_filter
+                    if "failure" not in self.avf_test_policy
+                    else FILTER_FAILURE_BASED_APPROACHES
+                ),
                 self.oversample_minority_class_percentage,
                 self.layers,
                 self.population_size,
@@ -138,10 +163,17 @@ class ExpConfigurator:
 
         if self.regression:
             self.testing_strategy += "-regression"
+            if self.minimize:
+                self.testing_strategy += "-minimize"
+
+        if self.other_exp_name is not None:
+            self.testing_strategy += f"-{self.other_exp_name}"
 
         if self.failure_prob_dist:
             if self.exp_file is None:
-                self.testing_strategy += "-failure-prob-dist-{}-{}".format(self.num_episodes, self.num_runs_each_env_config)
+                self.testing_strategy += "-failure-prob-dist-{}-{}".format(
+                    self.num_episodes, self.num_runs_each_env_config
+                )
             if self.parallelize_fp_dist:
                 self.testing_strategy += "-parallel"
 
@@ -151,17 +183,35 @@ class ExpConfigurator:
         if self.budget != -1:
             self.testing_strategy += "-budget-{}".format(self.budget)
 
+        if self.model_checkpoint != -1:
+            self.testing_strategy += f"-{model_checkpoint}"
+
         if self.exp_name is not None:
             self.testing_strategy += "-{}".format(self.exp_name)
 
         if self.resume_dir is not None:
             self.testing_strategy += "-resume"
 
+        if self.remove_road_constraints and self.env_name == DONKEY_ENV_NAME:
+            assert (
+                self.avf_test_policy == "random"
+                or self.avf_test_policy == "hc"
+                or "nn" in self.avf_test_policy
+                or "rnd" in self.avf_test_policy
+            ), f"Policy {self.avf_test_policy} not supported. Only random policies are supported."
+            self.testing_strategy += "-no-constraints"
+
         self._initialize()
 
     def _initialize(self):
 
-        self.model, self.avf, self.env, self.log_path, testing_strategy = instantiate_trained_policy(
+        (
+            self.model,
+            self.avf,
+            self.env,
+            self.log_path,
+            testing_strategy,
+        ) = instantiate_trained_policy(
             env_name=self.env_name,
             algo=self.algo,
             folder=self.folder,
@@ -173,16 +223,21 @@ class ExpConfigurator:
             enjoy_mode=False,
             testing_strategy=self.testing_strategy,
             regression=self.regression,
+            minimize=self.minimize,
             vae_path=self.vae_path,
             add_to_port=self.add_to_port,
             simulation_mul=self.simulation_mul,
             z_size=self.z_size,
             exe_path=self.exe_path,
             exp_file=self.exp_file,
-            resume_dir=self.resume_dir
+            resume_dir=self.resume_dir,
         )
 
-        self.num_episodes = self.num_episodes if self.exp_file is None else len(self.avf.failure_test_env_configs)
+        self.num_episodes = (
+            self.num_episodes
+            if self.exp_file is None
+            else len(self.avf.failure_test_env_configs)
+        )
 
         self.avf.update_state_variables_to_enable_testing_mode(
             num_episodes=self.num_episodes,
@@ -203,11 +258,16 @@ class ExpConfigurator:
             budget=self.budget,
             population_size=self.population_size,
             crossover_rate=self.crossover_rate,
+            remove_road_constraints=self.remove_road_constraints,
         )
 
         self.deterministic = True
 
-    def test(self, max_n_episodes: int = 100, num_trials: int = -1,) -> Tuple[int, float, int]:
+    def test(
+        self,
+        max_n_episodes: int = 100,
+        num_trials: int = -1,
+    ) -> Tuple[int, float, int]:
 
         start_time = time.time()
         self.avf.clear_state()
@@ -221,10 +281,14 @@ class ExpConfigurator:
             episode_length = 0
 
             while not done:
-                action, state = self.model.predict(obs, state=state, deterministic=self.deterministic)
+                action, state = self.model.predict(
+                    obs, state=state, deterministic=self.deterministic
+                )
                 # Clip Action to avoid out of bound errors
                 if isinstance(self.env.action_space, gym.spaces.Box):
-                    action = np.clip(action, self.env.action_space.low, self.env.action_space.high)
+                    action = np.clip(
+                        action, self.env.action_space.low, self.env.action_space.high
+                    )
                 obs, reward, done, _info = self.env.step(action)
                 episode_reward += reward[0]
                 episode_length += 1
@@ -242,22 +306,32 @@ class ExpConfigurator:
 
         return max_n_episodes, time.time() - start_time, 0
 
-    def test_single_episode(self, episode_num: int, num_trials: int = -1) -> Tuple[bool, EnvConfiguration]:
+    def test_single_episode(
+        self, episode_num: int, num_trials: int = -1
+    ) -> Tuple[bool, EnvConfiguration, List[float]]:
         obs = self.env.reset()
         done, state = False, None
         episode_reward = 0.0
         episode_length = 0
+        fitness_values = []
         if episode_num != -1:
             self.avf.num_episodes = episode_num
         if num_trials != -1:
             self.avf.num_trials = num_trials
 
         while not done:
-            action, state = self.model.predict(obs, state=state, deterministic=self.deterministic)
+            action, state = self.model.predict(
+                obs, state=state, deterministic=self.deterministic
+            )
             # Clip Action to avoid out of bound errors
             if isinstance(self.env.action_space, gym.spaces.Box):
-                action = np.clip(action, self.env.action_space.low, self.env.action_space.high)
+                action = np.clip(
+                    action, self.env.action_space.low, self.env.action_space.high
+                )
             obs, reward, done, _info = self.env.step(action)
+            if _info[0].get("fitness", None) is not None:
+                fitness_values.append(_info[0]["fitness"])
+
             episode_reward += reward[0]
             episode_length += 1
             if done:
@@ -273,20 +347,22 @@ class ExpConfigurator:
                 if is_success is not None:
                     self.logger.debug("Failure: {}".format(not is_success))
                     if is_success == 0:
-                        return True, self.avf.get_current_env_config()
-                    return False, self.avf.get_current_env_config()
+                        return True, self.avf.get_current_env_config(), fitness_values
+                    return False, self.avf.get_current_env_config(), fitness_values
 
     def close_env(self):
 
-        assert self.num_envs == 1, "Num envs must be = 1. Found: {}".format(self.num_envs)
+        assert self.num_envs == 1, "Num envs must be = 1. Found: {}".format(
+            self.num_envs
+        )
 
         env_unwrapped = self.env.unwrapped
         while not isinstance(env_unwrapped, DummyCVecEnv):
             env_unwrapped = env_unwrapped.unwrapped
 
-        assert isinstance(env_unwrapped.envs[0], EnvWrapper), "{} is not an instance of EnvWrapper".format(
-            type(env_unwrapped.envs[0])
-        )
+        assert isinstance(
+            env_unwrapped.envs[0], EnvWrapper
+        ), "{} is not an instance of EnvWrapper".format(type(env_unwrapped.envs[0]))
         if hasattr(env_unwrapped.envs[0], "env"):
             env_unwrapped.envs[0].env.close()
         else:

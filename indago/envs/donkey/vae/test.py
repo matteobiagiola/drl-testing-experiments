@@ -36,13 +36,27 @@ from indago.utils.torch_utils import from_numpy_no_device, to_numpy
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", help="Folder with real images", type=str, required=True)
-parser.add_argument("-vae", "--vae-path", help="Path to saved VAE", type=str, default="")
-parser.add_argument("--n-samples", help="Max number of samples to process", type=int, default=-1)
-parser.add_argument("--z-size", help="Latent space. Should match the latent space of the trained vae", type=int, default=64)
-parser.add_argument("--seed", help="Random generator seed", type=int, default=0)
-parser.add_argument("--show-images", help="Show images on screen", action="store_true", default=False)
 parser.add_argument(
-    "--rank-by-loss", help="Save images on disk ranked by their reconstruction loss", action="store_true", default=False
+    "-vae", "--vae-path", help="Path to saved VAE", type=str, default=""
+)
+parser.add_argument(
+    "--n-samples", help="Max number of samples to process", type=int, default=-1
+)
+parser.add_argument(
+    "--z-size",
+    help="Latent space. Should match the latent space of the trained vae",
+    type=int,
+    default=64,
+)
+parser.add_argument("--seed", help="Random generator seed", type=int, default=0)
+parser.add_argument(
+    "--show-images", help="Show images on screen", action="store_true", default=False
+)
+parser.add_argument(
+    "--rank-by-loss",
+    help="Save images on disk ranked by their reconstruction loss",
+    action="store_true",
+    default=False,
 )
 args = parser.parse_args()
 
@@ -50,7 +64,11 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 random.seed(args.seed)
 
-images = [os.path.join(args.folder, f) for f in os.listdir(args.folder) if f.endswith(".jpg") or f.endswith(".png")]
+images = [
+    os.path.join(args.folder, f)
+    for f in os.listdir(args.folder)
+    if f.endswith(".jpg") or f.endswith(".png")
+]
 
 n_samples = len(images)
 np.random.shuffle(images)
@@ -63,7 +81,9 @@ losses = []
 
 if args.rank_by_loss:
     assert not args.show_images, "show_images cannot be True when rank_by_loss is True"
-    assert args.folder is not None, "folder arg should not be None when rank_by_loss is True"
+    assert (
+        args.folder is not None
+    ), "folder arg should not be None when rank_by_loss is True"
     os.makedirs(os.path.join(args.folder, "rank"), exist_ok=True)
 
 for i in range_fn:
@@ -90,18 +110,30 @@ for i in range_fn:
             print("Loss: {}".format(loss))
 
         if args.rank_by_loss:
-            index_image = images[image_idx][images[image_idx].rindex(os.sep) + 1 : images[image_idx].index(".")]
-            cv2.imwrite(filename=os.path.join(args.folder, "rank", "l_{}_i_{}.png".format(int(loss), index_image)), img=image)
+            index_image = images[image_idx][
+                images[image_idx].rindex(os.sep) + 1 : images[image_idx].index(".")
+            ]
+            cv2.imwrite(
+                filename=os.path.join(
+                    args.folder, "rank", "l_{}_i_{}.png".format(int(loss), index_image)
+                ),
+                img=image,
+            )
 
     # Plot reconstruction
     if args.show_images:
         if args.folder is None:
-            cv2.imshow("Original", preprocessed_image.reshape(preprocessed_image.shape[1:]))
+            cv2.imshow(
+                "Original", preprocessed_image.reshape(preprocessed_image.shape[1:])
+            )
         else:
             cv2.imshow("Original", image)
 
     if args.show_images:
-        cv2.imshow("Reconstruction", reconstructed_image_np.reshape(reconstructed_image_np.shape[1:]))
+        cv2.imshow(
+            "Reconstruction",
+            reconstructed_image_np.reshape(reconstructed_image_np.shape[1:]),
+        )
 
     if args.show_images:
         cv2.waitKey(0)

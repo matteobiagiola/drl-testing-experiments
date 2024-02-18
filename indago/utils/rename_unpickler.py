@@ -1,6 +1,6 @@
 import io
 import pickle
-from typing import Any, Iterable, Optional
+from typing import Any
 from typing.io import IO
 
 
@@ -21,9 +21,13 @@ class RenameUnpickler(pickle.Unpickler):
 
 
 def renamed_load(file_obj, old_module: str, renamed_module: str):
-    return RenameUnpickler(file=file_obj, old_module=old_module, renamed_module=renamed_module).load()
+    return RenameUnpickler(
+        file=file_obj, old_module=old_module, renamed_module=renamed_module
+    ).load()
 
 
 def renamed_loads(pickled_bytes, old_module: str, renamed_module: str):
     file_obj = io.BytesIO(pickled_bytes)
-    return renamed_load(file_obj=file_obj, old_module=old_module, renamed_module=renamed_module)
+    return renamed_load(
+        file_obj=file_obj, old_module=old_module, renamed_module=renamed_module
+    )

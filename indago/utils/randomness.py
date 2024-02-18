@@ -19,4 +19,6 @@ def get_randint_sample(low: int, high: int, count: int) -> List[int]:
 
 
 def get_random_command(excluded_commands: List[Command]) -> Command:
-    return random.choices(population=[c for c in Command if c not in excluded_commands])[0]
+    return random.choices(
+        population=[c for c in Command if c not in excluded_commands]
+    )[0]

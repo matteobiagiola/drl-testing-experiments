@@ -27,6 +27,7 @@ SOFTWARE.
 """
 
 import os
+import platform
 from typing import Dict
 
 import gym
@@ -81,13 +82,18 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
 
         super(DonkeyEnvWrapper, self).__init__(avf=avf)
 
+        self.logger = Log("DonkeyWrapper")
+
+        if platform.system().lower() == "windows":
+            self.logger.warn("Headless mode is disabled in Windows")
+            headless = False
+
         self.vae = vae
         self.z_size = vae.z_size
 
         self.min_throttle = MIN_THROTTLE
         self.max_throttle = MAX_THROTTLE
         self.exe_path = exe_path
-        self.logger = Log("DonkeyWrapper")
         self.avf = avf
 
         # Save last n commands (throttle + steering)
@@ -102,7 +108,9 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
         # TCP port for communicating with simulation
         if add_to_port == -1:
             port = int(os.environ.get("DONKEY_SIM_PORT", 9091))
-            socket_local_address = int(os.environ.get("BASE_SOCKET_LOCAL_ADDRESS", 52804))
+            socket_local_address = int(
+                os.environ.get("BASE_SOCKET_LOCAL_ADDRESS", 52804)
+            )
         else:
             port = BASE_PORT + add_to_port
             socket_local_address = BASE_SOCKET_LOCAL_ADDRESS + port
@@ -111,11 +119,18 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
 
         self.unity_process = None
         self.logger.info("Starting DonkeyGym env")
-        assert os.path.exists(self.exe_path), "Path {} does not exist".format(self.exe_path)
+        assert os.path.exists(self.exe_path), "Path {} does not exist".format(
+            self.exe_path
+        )
         # Start Unity simulation subprocess if needed
         self.unity_process = DonkeyUnityProcess()
         # headless = os.environ.get('DONKEY_SIM_HEADLESS', False) == '1'
-        self.unity_process.start(sim_path=self.exe_path, headless=headless, port=port, simulation_mul=simulation_mul)
+        self.unity_process.start(
+            sim_path=self.exe_path,
+            headless=headless,
+            port=port,
+            simulation_mul=simulation_mul,
+        )
 
         # start simulation com
         self.viewer = DonkeyUnitySimController(
@@ -129,7 +144,11 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
         )
 
         # steering + throttle, action space must be symmetric
-        self.action_space = spaces.Box(low=np.array([-MAX_STEERING, -1]), high=np.array([MAX_STEERING, 1]), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=np.array([-MAX_STEERING, -1]),
+            high=np.array([MAX_STEERING, 1]),
+            dtype=np.float32,
+        )
 
         # z latent vector from the VAE (encoded input image)
         self.observation_space = spaces.Box(
@@ -145,7 +164,9 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
             low = np.repeat(obs_space.low, self.n_stack, axis=-1)
             high = np.repeat(obs_space.high, self.n_stack, axis=-1)
             self.stacked_obs = np.zeros(low.shape, low.dtype)
-            self.observation_space = spaces.Box(low=low, high=high, dtype=obs_space.dtype)
+            self.observation_space = spaces.Box(
+                low=low, high=high, dtype=obs_space.dtype
+            )
 
         self.seed(seed)
         # wait until loaded
@@ -160,7 +181,14 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
     def exit_scene(self):
         self.viewer.handler.send_exit_scene()
 
-    def postprocessing_step(self, action: np.ndarray, observation: np.ndarray, reward: float, done: bool, info: Dict):
+    def postprocessing_step(
+        self,
+        action: np.ndarray,
+        observation: np.ndarray,
+        reward: float,
+        done: bool,
+        info: Dict,
+    ):
         """
         Update the reward (add jerk_penalty if needed), the command history
         and stack new observation (when using frame-stacking).
@@ -174,7 +202,9 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
         """
         # Update command history
         if self.n_command_history > 0 and self.vae:
-            self.command_history = np.roll(self.command_history, shift=-self.n_commands, axis=-1)
+            self.command_history = np.roll(
+                self.command_history, shift=-self.n_commands, axis=-1
+            )
             self.command_history[..., -self.n_commands :] = action
             observation = np.concatenate((observation, self.command_history), axis=-1)
 
@@ -185,7 +215,9 @@ class DonkeyEnvWrapper(gym.Env, EnvWrapper):
         # reward -= jerk_penalty
 
         if self.n_stack > 1:
-            self.stacked_obs = np.roll(self.stacked_obs, shift=-observation.shape[-1], axis=-1)
+            self.stacked_obs = np.roll(
+                self.stacked_obs, shift=-observation.shape[-1], axis=-1
+            )
             if done:
                 self.stacked_obs[...] = 0
             self.stacked_obs[..., -observation.shape[-1] :] = observation

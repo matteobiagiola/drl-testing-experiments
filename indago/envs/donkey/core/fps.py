@@ -50,6 +50,8 @@ class FPSTimer(object):
         if self.iter == 100:
             end_time = time.perf_counter()
             if self.verbose >= 1:
-                self.logger.debug("{:.5f} fps".format(100.0 / (end_time - self.start_time)))
+                self.logger.debug(
+                    "{:.5f} fps".format(100.0 / (end_time - self.start_time))
+                )
             self.start_time = time.perf_counter()
             self.iter = 0

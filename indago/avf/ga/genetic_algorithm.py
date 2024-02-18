@@ -10,7 +10,7 @@ from captum.attr import Saliency
 from indago.avf.avf_policy import AvfPolicy
 from indago.avf.config import ELITISM_PERCENTAGE
 from indago.avf.dataset import Dataset
-from indago.avf.ga.chromsome import Chromosome
+from indago.avf.ga.chromosome import Chromosome
 from indago.avf.ga.crossover import single_point_fixed_crossover
 from indago.avf.ga.selection import roulette_wheel_selection
 from indago.avf.ga.stopping_criterion import StoppingCriterion
@@ -24,7 +24,11 @@ def fitness_sorting(chromosome: Chromosome):
 
 
 def keep_offspring(
-    parent_1: Chromosome, parent_2: Chromosome, offspring_1: Chromosome, offspring_2: Chromosome, minimize: bool = True
+    parent_1: Chromosome,
+    parent_2: Chromosome,
+    offspring_1: Chromosome,
+    offspring_2: Chromosome,
+    minimize: bool = True,
 ) -> bool:
 
     assert parent_1.fitness is not None, "First parent fitness not computed"
@@ -35,20 +39,32 @@ def keep_offspring(
     if minimize:
         return (
             compare_best_offspring_to_best_parent(
-                parent_1=parent_1, parent_2=parent_2, offspring_1=offspring_1, offspring_2=offspring_2, minimize=minimize
+                parent_1=parent_1,
+                parent_2=parent_2,
+                offspring_1=offspring_1,
+                offspring_2=offspring_2,
+                minimize=minimize,
             )
             <= 0
         )
     return (
         compare_best_offspring_to_best_parent(
-            parent_1=parent_1, parent_2=parent_2, offspring_1=offspring_1, offspring_2=offspring_2, minimize=minimize
+            parent_1=parent_1,
+            parent_2=parent_2,
+            offspring_1=offspring_1,
+            offspring_2=offspring_2,
+            minimize=minimize,
         )
         >= 0
     )
 
 
 def compare_best_offspring_to_best_parent(
-    parent_1: Chromosome, parent_2: Chromosome, offspring_1: Chromosome, offspring_2: Chromosome, minimize: bool = True
+    parent_1: Chromosome,
+    parent_2: Chromosome,
+    offspring_1: Chromosome,
+    offspring_2: Chromosome,
+    minimize: bool = True,
 ) -> int:
 
     best_parent = get_best(c1=parent_1, c2=parent_2, minimize=minimize)
@@ -80,9 +96,11 @@ class GeneticAlgorithm:
         regression: bool,
         crossover_rate: float,
         minimize: bool = True,
+        minimize_attribution: bool = False,
     ):
         self.population_size = population_size
         self.minimize = minimize
+        self.minimize_attribution = minimize_attribution
         self.population: List[Chromosome] = []
         self.fitness_values = []
         self.num_generations = 0
@@ -146,8 +164,24 @@ class GeneticAlgorithm:
         self.logger.debug("Generating population")
         if len(self.population) == 0:
             self.population = self.generate_population(
-                population_size=population_size_value, constraint_fn=constraint_fn, start_time=start_time, budget=budget
+                population_size=population_size_value,
+                constraint_fn=constraint_fn,
+                start_time=start_time,
+                budget=budget,
             )
+        elif len(self.population) < population_size_value:
+            self.population.extend(
+                self.generate_population(
+                    population_size=population_size_value - len(self.population),
+                    constraint_fn=constraint_fn,
+                    start_time=start_time,
+                    budget=budget,
+                )
+            )
+
+        assert (
+            len(self.population) == population_size_value
+        ), f"Initial population must be of size {population_size_value}. Found: {len(self.population)}"
 
         if only_initial_population:
             return None
@@ -158,7 +192,11 @@ class GeneticAlgorithm:
 
         stagnation_counter = 0
         i = 0
-        condition = i < num_generations if budget == -1 else time.perf_counter() - start_time < budget
+        condition = (
+            i < num_generations
+            if budget == -1
+            else time.perf_counter() - start_time < budget
+        )
         while condition:
             best_fitness_before_evolution = self.get_best_fitness()
 
@@ -191,11 +229,19 @@ class GeneticAlgorithm:
             self.fitness_values.append(best_fitness_after_evolution)
             self.logger.debug("Current iteration: {}".format(i))
             self.logger.debug("Stagnation counter: {}".format(stagnation_counter))
-            self.logger.debug("Best individual has fitness: {:.4f}".format(self.population[0].fitness))
-            self.logger.debug("Worst individual has fitness: {:.4f}".format(self.population[-1].fitness))
+            self.logger.debug(
+                "Best individual has fitness: {:.4f}".format(self.population[0].fitness)
+            )
+            self.logger.debug(
+                "Worst individual has fitness: {:.4f}".format(
+                    self.population[-1].fitness
+                )
+            )
             # print('Archive length: {}'.format(self.archive.length()))
             self.num_generations += 1
-            if self.stopping_criterion_factory().stop(best_chromosome=self.get_population()[0]):
+            if self.stopping_criterion_factory().stop(
+                best_chromosome=self.get_population()[0]
+            ):
                 if only_best:
                     return self.get_population()[0]
                 else:
@@ -208,9 +254,13 @@ class GeneticAlgorithm:
             if stagnation_counter > int(num_generations * 10 / 100):
                 if "failure" in self.avf_test_policy:
                     # reseed the initial failure env configurations
-                    self.logger.debug("Reseed the population with 5 random failure env configurations")
+                    self.logger.debug(
+                        "Reseed the population with 5 random failure env configurations"
+                    )
                     for _ in range(5):
-                        chromosome = random.choices(population=self.failure_env_configurations_pop)[0]
+                        chromosome = random.choices(
+                            population=self.failure_env_configurations_pop
+                        )[0]
                         if chromosome.fitness is None:
                             self.fitness_evaluations += 1
 
@@ -221,7 +271,11 @@ class GeneticAlgorithm:
                     self.logger.debug("Removing worst 5 individuals")
                     for _ in range(5):
                         chromosome_removed = self.population.pop()
-                        self.logger.debug("Removing individual with fitness: {}".format(chromosome_removed.fitness))
+                        self.logger.debug(
+                            "Removing individual with fitness: {}".format(
+                                chromosome_removed.fitness
+                            )
+                        )
                 else:
                     self.logger.debug("Adding 5 new individuals")
                     current_population_length = len(self.population)
@@ -240,11 +294,19 @@ class GeneticAlgorithm:
                     self.logger.debug("Removing worst 5 individuals")
                     for _ in range(5):
                         chromosome_removed = self.population.pop()
-                        self.logger.debug("Removing individual with fitness: {}".format(chromosome_removed.fitness))
+                        self.logger.debug(
+                            "Removing individual with fitness: {}".format(
+                                chromosome_removed.fitness
+                            )
+                        )
 
             i += 1
 
-            condition = i < num_generations if budget == -1 else time.perf_counter() - start_time < budget
+            condition = (
+                i < num_generations
+                if budget == -1
+                else time.perf_counter() - start_time < budget
+            )
 
         # return best chromosome
         if only_best:
@@ -295,13 +357,22 @@ class GeneticAlgorithm:
         #  * License along with EvoSuite. If not, see <http://www.gnu.org/licenses/>.
         #  */
         new_generation: List[Chromosome] = self.elitism()
+        if ELITISM_PERCENTAGE > 0:
+            assert len(new_generation) > 0, (
+                f"No elitism was carried out: population size too small {len(self.population)} "
+                f"or elitism percentage too small {ELITISM_PERCENTAGE}"
+            )
 
         if budget != -1 and time.perf_counter() - start_time >= budget:
             return
 
         while len(new_generation) < len(self.population):
-            parent_1 = roulette_wheel_selection(population=self.population, miminize=self.minimize)
-            parent_2 = roulette_wheel_selection(population=self.population, miminize=self.minimize)
+            parent_1 = roulette_wheel_selection(
+                population=self.population, miminize=self.minimize
+            )
+            parent_2 = roulette_wheel_selection(
+                population=self.population, miminize=self.minimize
+            )
 
             offspring_1 = copy.deepcopy(parent_1)
             offspring_2 = copy.deepcopy(parent_2)
@@ -334,19 +405,36 @@ class GeneticAlgorithm:
                 mutated_offsprings = []
                 for offspring in [offspring_1, offspring_2]:
 
-                    env_config_transformed = self.preprocessed_dataset.transform_env_configuration(
-                        env_configuration=offspring.env_config, policy=self.avf_train_policy,
+                    env_config_transformed = (
+                        self.preprocessed_dataset.transform_env_configuration(
+                            env_configuration=offspring.env_config,
+                            policy=self.avf_train_policy,
+                        )
                     )
-                    saliency = Saliency(forward_func=self.trained_avf_policy.get_model().forward)
-                    env_config_tensor = torch.tensor(env_config_transformed, dtype=torch.float32, requires_grad=True)
+                    saliency = Saliency(
+                        forward_func=self.trained_avf_policy.get_model().forward
+                    )
+                    env_config_tensor = torch.tensor(
+                        env_config_transformed, dtype=torch.float32, requires_grad=True
+                    )
                     env_config_tensor = env_config_tensor.view(1, -1)
                     if not self.regression:
-                        attributions = saliency.attribute(env_config_tensor, abs=False, target=1)
+                        attributions = saliency.attribute(
+                            env_config_tensor, abs=False, target=1
+                        )
                     else:
                         attributions = saliency.attribute(env_config_tensor, abs=False)
-                    mapping = self.preprocessed_dataset.get_mapping_transformed(env_configuration=offspring.env_config)
+                    mapping = self.preprocessed_dataset.get_mapping_transformed(
+                        env_configuration=offspring.env_config
+                    )
                     attributions = to_numpy(attributions).squeeze()
-                    mutated_offsprings.append(offspring.mutate_hot(attributions=attributions, mapping=mapping))
+                    mutated_offsprings.append(
+                        offspring.mutate_hot(
+                            attributions=attributions,
+                            mapping=mapping,
+                            minimize=self.minimize_attribution,
+                        )
+                    )
 
                 mutated_offspring_1 = mutated_offsprings[0]
                 mutated_offspring_2 = mutated_offsprings[1]
@@ -368,7 +456,11 @@ class GeneticAlgorithm:
             # The two offsprings replace the parents if and only if one of the
             # offspring is not worse than the best parent.
             if keep_offspring(
-                parent_1=parent_1, parent_2=parent_2, offspring_1=offspring_1, offspring_2=offspring_2, minimize=self.minimize
+                parent_1=parent_1,
+                parent_2=parent_2,
+                offspring_1=offspring_1,
+                offspring_2=offspring_2,
+                minimize=self.minimize,
             ):
                 new_generation.append(offspring_1)
                 new_generation.append(offspring_2)

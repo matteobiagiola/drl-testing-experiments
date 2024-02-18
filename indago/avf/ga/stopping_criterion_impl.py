@@ -1,4 +1,4 @@
-from indago.avf.ga.chromsome import Chromosome
+from indago.avf.ga.chromosome import Chromosome
 from indago.avf.ga.stopping_criterion import StoppingCriterion
 
 
@@ -8,5 +8,7 @@ class StoppingCriterionImpl(StoppingCriterion):
         self.target_fitness = target_fitness
 
     def stop(self, best_chromosome: Chromosome) -> bool:
-        assert best_chromosome.fitness is not None, "Fitness of best chromosome not computed"
+        assert (
+            best_chromosome.fitness is not None
+        ), "Fitness of best chromosome not computed"
         return best_chromosome.fitness <= self.target_fitness

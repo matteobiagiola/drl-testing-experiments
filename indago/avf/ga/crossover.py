@@ -1,9 +1,15 @@
-from indago.avf.ga.chromsome import Chromosome
+from indago.avf.ga.chromosome import Chromosome
 from indago.utils import randomness
 
 
-def single_point_fixed_crossover(c1: Chromosome, c2: Chromosome, trials: int = 20) -> bool:
-    assert c1.length == c2.length, "The length of the two chromosome must be the same: {} != {}".format(c1.length, c2.length)
+def single_point_fixed_crossover(
+    c1: Chromosome, c2: Chromosome, trials: int = 20
+) -> bool:
+    assert (
+        c1.length == c2.length
+    ), "The length of the two chromosome must be the same: {} != {}".format(
+        c1.length, c2.length
+    )
 
     if c1.length < 2:
         return False

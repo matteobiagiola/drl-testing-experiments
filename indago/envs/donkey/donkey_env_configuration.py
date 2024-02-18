@@ -1,5 +1,6 @@
 import copy
 import random
+import traceback
 from typing import Dict, List, Optional, Tuple
 
 import cv2
@@ -18,18 +19,29 @@ from indago.utils import randomness
 
 class DonkeyEnvConfiguration(EnvConfiguration):
     def __init__(
-        self, track_elements: List[TrackElem] = None,
+        self,
+        track_elements: List[TrackElem] = None,
+        remove_road_constraints: bool = False,
     ):
         super().__init__()
         self.key_names = ["track"]
         self.track_elements = track_elements
         self.track_generator = TrackGenerator()
+        self.remove_road_constraints = remove_road_constraints
+
+        # print(f"Remove road constraints: {self.remove_road_constraints}")
+
+        # stack = traceback.extract_stack()
+        # if stack[-2].name != "generate_random_env_configuration" and stack[-2].lineno != 637:
+        #     assert False
 
         # FIXME: in the other environments there is no check of validity when the configuration is instantiated
         # if track_elements is not None:
         #     assert self._is_valid(track_elements=track_elements), 'Track {} not valid'.format(self.get_str())
 
-        self.update_implementation(track=self.track_elements,)
+        self.update_implementation(
+            track=self.track_elements,
+        )
 
     def generate_configuration(self) -> "EnvConfiguration":
 
@@ -38,12 +50,17 @@ class DonkeyEnvConfiguration(EnvConfiguration):
             track_elements = self.track_generator.generate()
 
         self.track_elements = copy.deepcopy(track_elements)
-        self.update_implementation(track=self.track_elements,)
+        self.update_implementation(
+            track=self.track_elements,
+        )
 
         return self
 
     def _is_valid(self, track_elements: List[TrackElem]) -> bool:
-        return self.track_generator.constraints_satisfied(track_elements=track_elements)
+        return self.track_generator.constraints_satisfied(
+            track_elements=track_elements,
+            remove_road_constraints=self.remove_road_constraints,
+        )
 
     def get_length(self) -> int:
         assert len(self.track_elements) > 0, "Track elements still not initialized"
@@ -55,7 +72,9 @@ class DonkeyEnvConfiguration(EnvConfiguration):
     def get_roi() -> List[int]:
         return [30, 25, 150, 150]
 
-    def get_testing_image(self, car_trajectory: List[Tuple[float, float]]) -> np.ndarray:
+    def get_testing_image(
+        self, car_trajectory: List[Tuple[float, float]]
+    ) -> np.ndarray:
         track_points = get_track_points(track_elements=self.track_elements)
         plot_x = [tp.x for tp in track_points]
         plot_y = [tp.y for tp in track_points]
@@ -76,8 +95,12 @@ class DonkeyEnvConfiguration(EnvConfiguration):
                 car_trajectory_x.append(trajectory_component[0])
                 car_trajectory_y.append(trajectory_component[1])
             else:
-                if (round(trajectory_component[0], 0) == 50.0 or round(trajectory_component[0], 0) == 49.0) and (
-                    round(trajectory_component[1], 0) == 50.0 or round(trajectory_component[1], 0) == 49.0
+                if (
+                    round(trajectory_component[0], 0) == 50.0
+                    or round(trajectory_component[0], 0) == 49.0
+                ) and (
+                    round(trajectory_component[1], 0) == 50.0
+                    or round(trajectory_component[1], 0) == 49.0
                 ):
                     first_value_in = True
         ax.scatter(car_trajectory_x, car_trajectory_y, c="red", s=50)
@@ -88,7 +111,9 @@ class DonkeyEnvConfiguration(EnvConfiguration):
         image_array = image_array.astype(np.float32)
         image_array = cv2.resize(image_array, (200, 200))
         # remove contours, including axes labels
-        image_array = image_array[int(roi[1]) : int(roi[1] + roi[3]), int(roi[0]) : int(roi[0] + roi[2])]
+        image_array = image_array[
+            int(roi[1]) : int(roi[1] + roi[3]), int(roi[0]) : int(roi[0] + roi[2])
+        ]
         return image_array
 
     def get_image(self) -> np.ndarray:
@@ -110,7 +135,9 @@ class DonkeyEnvConfiguration(EnvConfiguration):
         image_array = cv2.resize(image_array, (200, 200))
 
         # remove contours, including axes labels
-        image_array = image_array[int(roi[1]) : int(roi[1] + roi[3]), int(roi[0]) : int(roi[0] + roi[2])]
+        image_array = image_array[
+            int(roi[1]) : int(roi[1] + roi[3]), int(roi[0]) : int(roi[0] + roi[2])
+        ]
         return image_array
 
     def get_str(self) -> str:
@@ -126,16 +153,23 @@ class DonkeyEnvConfiguration(EnvConfiguration):
             split = None
             for c in Command:
                 if c.name in split_instruction:
-                    split = (split_instruction[: len(c.name)], split_instruction[len(c.name) : len(split_instructions)])
+                    split = (
+                        split_instruction[: len(c.name)],
+                        split_instruction[len(c.name) : len(split_instructions)],
+                    )
                     break
             assert split is not None, "No command found in {}".format(split_instruction)
             command_name = split[0]
             command_value = split[1]
-            command, value = parse_command(command_name=command_name, command_value=command_value)
+            command, value = parse_command(
+                command_name=command_name, command_value=command_value
+            )
             track_elements.append(TrackElem(command=command, value=value))
 
         self.track_elements = track_elements
-        self.update_implementation(track=self.track_elements,)
+        self.update_implementation(
+            track=self.track_elements,
+        )
 
         return self
 
@@ -146,9 +180,13 @@ class DonkeyEnvConfiguration(EnvConfiguration):
 
         for i in range(new_env_config.get_length()):
             if randomness.get_random_float(low=0, high=1) < 0.5:
-                track_element = self.track_generator.change_command(idx=i, track_elements=new_env_config.track_elements)
+                track_element = self.track_generator.change_command(
+                    idx=i, track_elements=new_env_config.track_elements
+                )
             else:
-                track_element = self.track_generator.change_value(idx=i, track_elements=new_env_config.track_elements)
+                track_element = self.track_generator.change_value(
+                    idx=i, track_elements=new_env_config.track_elements
+                )
             new_env_config.track_elements[i] = track_element
 
         if new_env_config._is_valid(track_elements=new_env_config.track_elements):
@@ -156,16 +194,31 @@ class DonkeyEnvConfiguration(EnvConfiguration):
 
         return None
 
-    def mutate_hot(self, attributions: np.ndarray, mapping: Dict) -> Optional["EnvConfiguration"]:
+    def mutate_hot(
+        self, attributions: np.ndarray, mapping: Dict, minimize: bool
+    ) -> Optional["EnvConfiguration"]:
         new_env_config = copy.deepcopy(self)
         # get indices as if the array attributions was sorted and reverse it (::-1)
         # indices_sort = np.argsort(attributions)[::-1]
-        idx_to_mutate = random.choices(population=list(range(0, len(attributions))), weights=np.abs(attributions), k=1)[0]
-        keys_to_mutate = list(filter(lambda key: idx_to_mutate in mapping[key], mapping.keys()))
-        assert len(keys_to_mutate) == 1, "There must be only one key where the attribution is max ({}). Found: {}".format(
+
+        if minimize:
+            attributions *= -1
+
+        idx_to_mutate = random.choices(
+            population=list(range(0, len(attributions))),
+            weights=np.abs(attributions),
+            k=1,
+        )[0]
+        keys_to_mutate = list(
+            filter(lambda key: idx_to_mutate in mapping[key], mapping.keys())
+        )
+        assert (
+            len(keys_to_mutate) == 1
+        ), "There must be only one key where the attribution is max ({}). Found: {}".format(
             idx_to_mutate, len(keys_to_mutate)
         )
         key_to_mutate = keys_to_mutate[0]
+
         if np.all(attributions >= 0):
             sign = "rnd"
         elif attributions[idx_to_mutate] > 0:
@@ -174,16 +227,21 @@ class DonkeyEnvConfiguration(EnvConfiguration):
             sign = "neg"
         else:
             sign = "rnd"
+
         idx_to_mutate_env_config = self.get_index_to_mutate_env_config(
             idx_to_mutate=idx_to_mutate, key_to_mutate=key_to_mutate, mapping=mapping
         )
         if key_to_mutate == "commands":
             track_element = self.track_generator.change_command(
-                idx=idx_to_mutate_env_config, track_elements=new_env_config.track_elements, sign=sign
+                idx=idx_to_mutate_env_config,
+                track_elements=new_env_config.track_elements,
+                sign=sign,
             )
         elif key_to_mutate == "values":
             track_element = self.track_generator.change_value(
-                idx=idx_to_mutate_env_config, track_elements=new_env_config.track_elements, sign=sign
+                idx=idx_to_mutate_env_config,
+                track_elements=new_env_config.track_elements,
+                sign=sign,
             )
         else:
             raise RuntimeError("Key not present {}".format(key_to_mutate))
@@ -195,7 +253,9 @@ class DonkeyEnvConfiguration(EnvConfiguration):
 
         return None
 
-    def crossover(self, other_env_config: "EnvConfiguration", pos1: int, pos2: int) -> Optional["EnvConfiguration"]:
+    def crossover(
+        self, other_env_config: "EnvConfiguration", pos1: int, pos2: int
+    ) -> Optional["EnvConfiguration"]:
         # FIXME: this crossover does not comply with the grammar of the track and it will likely result in
         #  an invalid configuration.
         new_env_config_impl = copy.deepcopy(self.impl)
@@ -204,7 +264,9 @@ class DonkeyEnvConfiguration(EnvConfiguration):
         for i in range(pos2 + 1, self.get_length()):
             new_env_config_impl["track"][i] = other_env_config.impl["track"][i]
 
-        new_env_config = DonkeyEnvConfiguration(track_elements=new_env_config_impl["track"])
+        new_env_config = DonkeyEnvConfiguration(
+            track_elements=new_env_config_impl["track"]
+        )
 
         try:
             if new_env_config._is_valid(track_elements=new_env_config.track_elements):
@@ -213,8 +275,12 @@ class DonkeyEnvConfiguration(EnvConfiguration):
             pass
         return None
 
-    def get_index_to_mutate_env_config(self, idx_to_mutate: int, key_to_mutate: str, mapping: Dict) -> int:
-        assert idx_to_mutate in mapping[key_to_mutate], "Index {} not in key {}".format(idx_to_mutate, key_to_mutate)
+    def get_index_to_mutate_env_config(
+        self, idx_to_mutate: int, key_to_mutate: str, mapping: Dict
+    ) -> int:
+        assert idx_to_mutate in mapping[key_to_mutate], "Index {} not in key {}".format(
+            idx_to_mutate, key_to_mutate
+        )
         if idx_to_mutate > len(self.track_elements) - 1:
             assert idx_to_mutate - len(self.track_elements) >= 0, "Negative index"
             return idx_to_mutate - len(self.track_elements)

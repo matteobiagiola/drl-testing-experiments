@@ -17,7 +17,9 @@ class TrainingLogs(ABC):
         assert NotImplementedError("Not implemented error")
 
     def to_dict_test(self) -> Dict:
-        return TestingLogs(config=self.config, dynamic_info=self.get_dynamic_episode_info().tolist()).to_dict()
+        return TestingLogs(
+            config=self.config, dynamic_info=self.get_dynamic_episode_info().tolist()
+        ).to_dict()
 
     @abstractmethod
     def is_agent_state_empty(self) -> bool:

@@ -12,7 +12,12 @@ from log import Log
 
 
 def input_diversity(
-    folder: str, names: List[str], directories: List[str], env_name: str, dataset: Dataset, avf_train_policy: str
+    folder: str,
+    names: List[str],
+    directories: List[str],
+    env_name: str,
+    dataset: Dataset,
+    avf_train_policy: str,
 ) -> Tuple[np.ndarray, Dict]:
 
     logger = Log("input_diversity")
@@ -30,12 +35,13 @@ def input_diversity(
                 if ".json" in file:
                     failure_flags.append(int(file.split("-")[-1].split(".")[0]))
                     json_data = read_logs(log_path=dir_, filename=file)
-                    testing_logs = parse_testing_logs(env_name=env_name, json_data=json_data)
+                    testing_logs = parse_testing_logs(
+                        env_name=env_name, json_data=json_data
+                    )
                     testing_logs_trial = testing_logs
-            assert testing_logs_trial is not None, "Testing logs not assigned in {} for {}".format(dir_, names[i])
-
-            # # consider the configuration only if it is a failure
-            # if sum(failure_flags) / len(failure_flags) > 0.5:
+            assert (
+                testing_logs_trial is not None
+            ), "Testing logs not assigned in {} for {}".format(dir_, names[i])
 
             # assumes the configuration triggers a failure (due to non-determinism this might not be true after
             # a re-execution)
@@ -46,9 +52,18 @@ def input_diversity(
     transformed_env_configurations_names = []
     for configs in env_configurations_names.values():
         transformed_env_configurations_names.extend(
-            list(dataset.transform_env_configuration(env_configuration=config, policy=avf_train_policy)) for config in configs
+            list(
+                dataset.transform_env_configuration(
+                    env_configuration=config, policy=avf_train_policy
+                )
+            )
+            for config in configs
         )
 
-    logger.info("Transforming {} env configurations".format(len(transformed_env_configurations_names)))
+    logger.info(
+        "Transforming {} env configurations".format(
+            len(transformed_env_configurations_names)
+        )
+    )
 
     return np.asarray(transformed_env_configurations_names), env_configurations_names

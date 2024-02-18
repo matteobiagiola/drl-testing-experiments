@@ -7,14 +7,21 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
 
-from indago.avf.dataset import Dataset
-from indago.utils.torch_utils import DEVICE, to_numpy
+from indago.avf.dataset import Dataset, TorchDataset
+from indago.utils.torch_utils import DEVICE, to_numpy, from_numpy
 
 
-def weighted_mse_loss(inputs, targets, weights=None):
+def weighted_mse_loss(inputs: Tensor, targets: Tensor, weights=None):
     loss = (inputs - targets) ** 2
     if weights is not None:
-        loss *= weights.expand_as(loss)
+        bin_indexes_per_label = TorchDataset.get_bin_indexes(
+            labels=to_numpy(tensor=targets), bin_edges=TorchDataset.get_bin_edges()
+        )
+        # Create an array of dimensions len(targets) with weights corresponding to the indexes (fancy indexing)
+        weights_tensor = from_numpy(
+            to_numpy(weights)[bin_indexes_per_label % len(weights)]
+        )
+        loss *= weights_tensor
     loss = th.mean(loss)
     return loss
 
@@ -27,7 +34,9 @@ def weighted_l1_loss(inputs, targets, weights=None):
     return loss
 
 
-def weighted_focal_mse_loss(inputs, targets, activate="sigmoid", beta=0.2, gamma=1, weights=None):
+def weighted_focal_mse_loss(
+    inputs, targets, activate="sigmoid", beta=0.2, gamma=1, weights=None
+):
     loss = (inputs - targets) ** 2
     loss *= (
         (th.tanh(beta * th.abs(inputs - targets))) ** gamma
@@ -40,7 +49,9 @@ def weighted_focal_mse_loss(inputs, targets, activate="sigmoid", beta=0.2, gamma
     return loss
 
 
-def weighted_focal_l1_loss(inputs, targets, activate="sigmoid", beta=0.2, gamma=1, weights=None):
+def weighted_focal_l1_loss(
+    inputs, targets, activate="sigmoid", beta=0.2, gamma=1, weights=None
+):
     loss = F.l1_loss(inputs, targets, reduction="none")
     loss *= (
         (th.tanh(beta * th.abs(inputs - targets))) ** gamma
@@ -56,7 +67,7 @@ def weighted_focal_l1_loss(inputs, targets, activate="sigmoid", beta=0.2, gamma=
 def weighted_huber_loss(inputs, targets, beta=1.0, weights=None):
     l1_loss = th.abs(inputs - targets)
     cond = l1_loss < beta
-    loss = th.where(cond, 0.5 * l1_loss ** 2 / beta, l1_loss - 0.5 * beta)
+    loss = th.where(cond, 0.5 * l1_loss**2 / beta, l1_loss - 0.5 * beta)
     if weights is not None:
         loss *= weights.expand_as(loss)
     loss = th.mean(loss)
@@ -99,9 +110,11 @@ class AvfPolicy(nn.Module, metaclass=abc.ABCMeta):
                         nn.Linear(in_features=input_size, out_features=32),
                         nn.BatchNorm1d(num_features=32),
                         nn.ReLU(),
-                        nn.Linear(in_features=32, out_features=2)
-                        if not regression
-                        else nn.Linear(in_features=32, out_features=1),
+                        (
+                            nn.Linear(in_features=32, out_features=2)
+                            if not regression
+                            else nn.Linear(in_features=32, out_features=1)
+                        ),
                     ),
                     # 2 layers nn
                     nn.Sequential(
@@ -113,9 +126,11 @@ class AvfPolicy(nn.Module, metaclass=abc.ABCMeta):
                         nn.BatchNorm1d(num_features=32),
                         nn.ReLU(),
                         nn.Dropout(p=0.5),
-                        nn.Linear(in_features=32, out_features=2)
-                        if not regression
-                        else nn.Linear(in_features=32, out_features=1),
+                        (
+                            nn.Linear(in_features=32, out_features=2)
+                            if not regression
+                            else nn.Linear(in_features=32, out_features=1)
+                        ),
                     ),
                     # 3 layers nn
                     nn.Sequential(
@@ -131,9 +146,11 @@ class AvfPolicy(nn.Module, metaclass=abc.ABCMeta):
                         nn.BatchNorm1d(num_features=32),
                         nn.ReLU(),
                         nn.Dropout(p=0.5),
-                        nn.Linear(in_features=32, out_features=2)
-                        if not regression
-                        else nn.Linear(in_features=32, out_features=1),
+                        (
+                            nn.Linear(in_features=32, out_features=2)
+                            if not regression
+                            else nn.Linear(in_features=32, out_features=1)
+                        ),
                     ),
                     # 4 layers nn
                     nn.Sequential(
@@ -153,9 +170,11 @@ class AvfPolicy(nn.Module, metaclass=abc.ABCMeta):
                         nn.BatchNorm1d(num_features=32),
                         nn.ReLU(),
                         nn.Dropout(p=0.5),
-                        nn.Linear(in_features=32, out_features=2)
-                        if not regression
-                        else nn.Linear(in_features=32, out_features=1),
+                        (
+                            nn.Linear(in_features=32, out_features=2)
+                            if not regression
+                            else nn.Linear(in_features=32, out_features=1)
+                        ),
                     ),
                 ]
                 assert 0 <= layers - 1 < len(models)
@@ -165,20 +184,24 @@ class AvfPolicy(nn.Module, metaclass=abc.ABCMeta):
         return __init_model
 
     @staticmethod
-    def loss_function(input: Tensor, target: Tensor, regression: bool = False, weights: Tensor = None) -> Tensor:
+    def loss_function(
+        input: Tensor, target: Tensor, regression: bool = False, weights: Tensor = None
+    ) -> Tensor:
         if not regression:
             if weights is not None:
                 weights = weights[0].view(len(weights[0]))
             return F.cross_entropy(input=input, target=target, weight=weights)
         if weights is not None:
-            weights = weights.view(len(weights))
+            weights = weights[0].view(len(weights[0]))
             return weighted_mse_loss(inputs=input, targets=target, weights=weights)
         return F.mse_loss(input=input, target=target)
 
     def save(self, filepath: str) -> None:
         th.save(self.state_dict(), filepath)
 
-    def load(self, filepath: str, load_on_device: bool = False, save_paths: List[str] = None) -> None:
+    def load(
+        self, filepath: str, load_on_device: bool = False, save_paths: List[str] = None
+    ) -> None:
         if load_on_device:
             self.load_state_dict(th.load(filepath, map_location=th.device(DEVICE)))
         else:
@@ -201,38 +224,67 @@ class AvfPolicy(nn.Module, metaclass=abc.ABCMeta):
         return self.model.forward(data)
 
     def forward_and_loss(
-        self, data: Tensor, target: Tensor, training: bool = True, weights: Tensor = None
+        self,
+        data: Tensor,
+        target: Tensor,
+        training: bool = True,
+        weights: Tensor = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         if not self.regression:
             if self.loss_type == "classification":
                 output = self.forward(data)
-                predictions = F.softmax(output, dim=1).detach().argmax(dim=1, keepdim=True).squeeze()
+                predictions = (
+                    F.softmax(output, dim=1)
+                    .detach()
+                    .argmax(dim=1, keepdim=True)
+                    .squeeze()
+                )
                 if training:
-                    return self.loss_function(input=output, target=target, weights=weights), predictions
+                    return (
+                        self.loss_function(
+                            input=output, target=target, weights=weights
+                        ),
+                        predictions,
+                    )
                 return output.detach(), predictions
             else:
-                raise NotImplementedError("Loss type {} is not implemented".format(self.loss_type))
+                raise NotImplementedError(
+                    "Loss type {} is not implemented".format(self.loss_type)
+                )
 
         predictions = th.squeeze(self.forward(data))
         if training:
-            return self.loss_function(input=predictions, target=target, weights=weights, regression=True), predictions
+            return (
+                self.loss_function(
+                    input=predictions, target=target, weights=weights, regression=True
+                ),
+                predictions,
+            )
         else:
             return predictions
 
     def get_failure_class_prediction(
-        self, env_config_transformed: np.ndarray, dataset: Dataset, count_num_evaluation: bool = True,
+        self,
+        env_config_transformed: np.ndarray,
+        dataset: Dataset,
+        count_num_evaluation: bool = True,
     ) -> float:
 
         if count_num_evaluation:
             self.num_evaluation_predictions += 1
             self.current_evaluation_predictions += 1
 
-        output = self.forward(th.tensor(env_config_transformed, dtype=th.float32).view(1, -1))
+        output = self.forward(
+            th.tensor(env_config_transformed, dtype=th.float32).view(1, -1)
+        )
 
         if self.regression:
             output = to_numpy(output).squeeze()
+
             if dataset.output_scaler is not None:
-                output = dataset.output_scaler.transform(X=output.reshape(1, -1)).squeeze()
+                output = dataset.output_scaler.transform(
+                    X=output.reshape(1, -1)
+                ).squeeze()
             return output
 
         output = to_numpy(F.softmax(output, dim=1))

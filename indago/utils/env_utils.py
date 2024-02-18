@@ -24,15 +24,25 @@ THE SOFTWARE.
 import glob
 import os
 import socket
+import time
 from typing import Callable, Union
 
 from stable_baselines3.common.monitor import Monitor
 
+from indago.algos.dqn_wrapper import DQNWrapper
 from indago.algos.her_wrapper import HERWrapper
+from indago.algos.ppo_wrapper import PPOWrapper
 from indago.algos.sac_wrapper import SACWrapper
 from indago.algos.tqc_wrapper import TQCWrapper
 from indago.avf.avf import Avf
-from indago.config import BASE_PORT, DONKEY_ENV_NAME, HUMANOID_ENV_NAME, PARK_ENV_NAME
+from indago.config import (
+    BASE_PORT,
+    DONKEY_ENV_NAME,
+    HUMANOID_ENV_NAME,
+    PARK_ENV_NAME,
+    CARTPOLE_ENV_NAME,
+)
+from indago.envs.cartpole.cartpole_env_wrapper import CartPoleEnvWrapper
 from indago.envs.donkey.donkey_env_wrapper import DonkeyEnvWrapper
 from indago.envs.donkey.scenes.simulator_scenes import SimulatorScene
 from indago.envs.donkey.vae.vae import VAE
@@ -44,6 +54,8 @@ ALGOS = {
     "her": HERWrapper,
     "sac": SACWrapper,
     "tqc": TQCWrapper,
+    "dqn": DQNWrapper,
+    "ppo": PPOWrapper,
 }
 
 
@@ -102,7 +114,11 @@ def get_latest_run_id(log_path: str, env_id: str) -> int:
         # to take into account files with extension
         if "." in ext:
             ext = ext[: ext.rindex(".")]
-        if env_id == "_".join(file_name.split("_")[:-1]) and ext.isdigit() and int(ext) > max_run_id:
+        if (
+            env_id == "_".join(file_name.split("_")[:-1])
+            and ext.isdigit()
+            and int(ext) > max_run_id
+        ):
             max_run_id = int(ext)
     return max_run_id
 
@@ -122,6 +138,18 @@ def make_env_fn(
     simulator_scene: SimulatorScene = None,
     headless: bool = False,
 ) -> Callable:
+    def _cartpole_env_init():
+        env_ = CartPoleEnvWrapper(avf=avf, headless=headless)
+        env_.seed(seed)
+        env_.action_space.seed(seed)
+        info_keywords = ("is_success",)
+
+        if save_path is not None:
+            return Monitor(
+                env_, save_path, allow_early_resets=True, info_keywords=info_keywords
+            )
+        return env_
+
     def _park_env_init():
         env_ = ParkingEnvWrapper(avf=avf)
         env_.seed(seed)
@@ -134,7 +162,9 @@ def make_env_fn(
             env_.unwrap().config["show_trajectories"] = True
 
         if save_path is not None:
-            return Monitor(env_, save_path, allow_early_resets=True, info_keywords=info_keywords)
+            return Monitor(
+                env_, save_path, allow_early_resets=True, info_keywords=info_keywords
+            )
         return env_
 
     def _humanoid_env_init():
@@ -143,15 +173,22 @@ def make_env_fn(
         env_.action_space.seed(seed)
         info_keywords = ("is_success",)
         if save_path is not None:
-            return Monitor(env_, save_path, allow_early_resets=True, info_keywords=info_keywords)
+            return Monitor(
+                env_, save_path, allow_early_resets=True, info_keywords=info_keywords
+            )
         return env_
 
     def _donkey_env_init():
         # not a very nice solution since some simulator instances may have been already started and
         # there is no way to stop them from this point
-        assert not check_port_in_use(port=BASE_PORT + add_to_port - 1), "Port {} is in use".format(BASE_PORT + add_to_port - 1)
-        assert not check_port_in_use(port=BASE_PORT + add_to_port), "Port {} is in use".format(BASE_PORT + add_to_port)
-        assert not check_port_in_use(port=BASE_PORT + add_to_port + 1), "Port {} is in use".format(BASE_PORT + add_to_port + 1)
+        count = 0
+        while check_port_in_use(port=BASE_PORT + add_to_port) and count < 10:
+            time.sleep(1)
+            count += 1
+
+        assert not check_port_in_use(
+            port=BASE_PORT + add_to_port
+        ), "Port {} is in use".format(BASE_PORT + add_to_port)
 
         vae = VAE(in_channels=3, latent_dim=z_size).to(DEVICE)
         vae.load(vae_path)
@@ -173,10 +210,14 @@ def make_env_fn(
 
         info_keywords = ("is_success",)
         if save_path is not None:
-            return Monitor(env_, save_path, allow_early_resets=True, info_keywords=info_keywords)
+            return Monitor(
+                env_, save_path, allow_early_resets=True, info_keywords=info_keywords
+            )
 
         return env_
 
+    if env_name == CARTPOLE_ENV_NAME:
+        return _cartpole_env_init
     if env_name == PARK_ENV_NAME:
         return _park_env_init
     if env_name == HUMANOID_ENV_NAME:

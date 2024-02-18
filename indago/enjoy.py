@@ -41,15 +41,37 @@ from log import Log
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--folder", help="Log folder", type=str, default="logs")
-parser.add_argument("--algo", help="RL Algorithm", default="sac", type=str, required=False, choices=list(ALGOS.keys()))
-parser.add_argument("-n", "--n-episodes", help="number of episodes", default=5, type=int)
+parser.add_argument(
+    "--algo",
+    help="RL Algorithm",
+    default="sac",
+    type=str,
+    required=False,
+    choices=list(ALGOS.keys()),
+)
+parser.add_argument(
+    "-n", "--n-episodes", help="number of episodes", default=5, type=int
+)
 parser.add_argument("--exp-id", help="Experiment ID (0: latest)", default=0, type=int)
-parser.add_argument("--verbose", help="Verbose mode (0: no output, 1: INFO)", default=1, type=int)
-parser.add_argument("--env-name", help="Env name", type=str, choices=ENV_NAMES, default="park")
-parser.add_argument("--env-id", help="Env id", type=str, choices=ENV_IDS, default="parking-v0")
-parser.add_argument("--deterministic", action="store_true", default=False, help="Use deterministic actions")
+parser.add_argument(
+    "--verbose", help="Verbose mode (0: no output, 1: INFO)", default=1, type=int
+)
+parser.add_argument(
+    "--env-name", help="Env name", type=str, choices=ENV_NAMES, default="park"
+)
+parser.add_argument(
+    "--env-id", help="Env id", type=str, choices=ENV_IDS, default="parking-v0"
+)
+parser.add_argument(
+    "--deterministic",
+    action="store_true",
+    default=False,
+    help="Use deterministic actions",
+)
 parser.add_argument("--seed", help="Random generator seed", type=int, default=-1)
-parser.add_argument("--model-checkpoint", help="Model checkpoint to load", type=int, default=-1)
+parser.add_argument(
+    "--model-checkpoint", help="Model checkpoint to load", type=int, default=-1
+)
 parser.add_argument(
     "--headless",
     help="Whether to run the simulator headless or not (for Parking the frames are recorded on disk)",
@@ -58,15 +80,30 @@ parser.add_argument(
 )
 
 # DonkeyCar parameters
-parser.add_argument("-vae", "--vae-path", help="Path to saved VAE", type=str, default=None)
 parser.add_argument(
-    "--add-to-port", help="Adding to default port 9091 in order to execute more simulators in parallel", type=int, default=-1
+    "-vae", "--vae-path", help="Path to saved VAE", type=str, default=None
 )
-parser.add_argument("--simulation-mul", help="Speed up DonkeyCar simulation by at most 5x", type=int, default=1)
 parser.add_argument(
-    "--z-size", help="Latent space size. Needs to match the latent space of the trained VAE", type=int, default=64
+    "--add-to-port",
+    help="Adding to default port 9091 in order to execute more simulators in parallel",
+    type=int,
+    default=-1,
 )
-parser.add_argument("--exe-path", help="DonkeyCar simulator execution path", type=str, default=None)
+parser.add_argument(
+    "--simulation-mul",
+    help="Speed up DonkeyCar simulation by at most 5x",
+    type=int,
+    default=1,
+)
+parser.add_argument(
+    "--z-size",
+    help="Latent space size. Needs to match the latent space of the trained VAE",
+    type=int,
+    default=64,
+)
+parser.add_argument(
+    "--exe-path", help="DonkeyCar simulator execution path", type=str, default=None
+)
 
 args = parser.parse_args()
 
@@ -109,6 +146,7 @@ if __name__ == "__main__":
         budget=0,
         population_size=0,
         crossover_rate=0.0,
+        remove_road_constraints=False,
     )
 
     # Force deterministic for SAC and DDPG
@@ -141,7 +179,12 @@ if __name__ == "__main__":
             if not args.headless:
                 if args.env_name == PARK_ENV_NAME:
                     image = env.render("rgb_array")
-                    cv2.imwrite(filename=os.path.join(log_path, "{}_{}.png".format(i, episode_length)), img=image)
+                    cv2.imwrite(
+                        filename=os.path.join(
+                            log_path, "{}_{}.png".format(i, episode_length)
+                        ),
+                        img=image,
+                    )
                 else:
                     env.render()
             if done:
@@ -171,7 +214,9 @@ if __name__ == "__main__":
     success_rates = []
     for info in episodes_info:
         is_success = info[0].get("is_success", None)
-        assert is_success is not None, "Info object does not contain the field is_success. Found: {}".format(info)
+        assert (
+            is_success is not None
+        ), "Info object does not contain the field is_success. Found: {}".format(info)
         if is_success == 0:
             success_rates.append(0)
         elif is_success == 1:

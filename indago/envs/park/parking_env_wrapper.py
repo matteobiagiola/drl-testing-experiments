@@ -1,12 +1,13 @@
 import base64
 from io import BytesIO
+from PIL import Image
 from typing import Dict, Optional, Tuple
 
-import numpy as np
 from highway_env.envs import Action
 from highway_env.envs.common.abstract import Observation
+import numpy as np
+from indago.avf.env_configuration import EnvConfiguration
 
-from indago.avf.avf import *
 from indago.env_wrapper import EnvWrapper
 from indago.envs.park.parking_env import ParkingEnv
 from indago.envs.park.parking_training_logs import ParkingTrainingLogs
@@ -24,6 +25,7 @@ class ParkingEnvWrapper(EnvWrapper):
         self.actions = []
         self.rewards = []
         self.speeds = []
+        self.fitness_values = []
         self.car_trajectory = []
 
         self.action_space = self.env.action_space
@@ -46,13 +48,19 @@ class ParkingEnvWrapper(EnvWrapper):
         self.actions.append(actions)
         self.rewards.append(reward)
         self.speeds.append(info["speed"])
-        self.car_trajectory.append(list(map(lambda a: float(a), list(info["vehicle_position"]))))
+        if info.get("fitness", None) is not None:
+            self.fitness_values.append(info["fitness"])
+
+        self.car_trajectory.append(
+            list(map(lambda a: float(a), list(info["vehicle_position"])))
+        )
         if done:
             assert self.first_frame_string is not None, "First frame not yet encoded"
             goal_position = info.get("goal_position", None)
             parked_vehicle_positions = info.get("parked_vehicles_positions", None)
             parking_training_logs = ParkingTrainingLogs(
                 is_success=int(info["is_success"]),
+                fitness_values=self.fitness_values,
                 agent_state=self.agent_state,
                 first_frame_string=self.first_frame_string,
                 config=self.configuration,
@@ -69,6 +77,7 @@ class ParkingEnvWrapper(EnvWrapper):
             self.rewards.clear()
             self.speeds.clear()
             self.car_trajectory.clear()
+            self.fitness_values.clear()
 
         return obs, reward, done, info
 
@@ -80,15 +89,27 @@ class ParkingEnvWrapper(EnvWrapper):
                 goal_lane_idx=self.configuration.goal_lane_idx,
                 heading_ego=self.configuration.heading_ego,
                 parked_vehicles_lane_indices=list(
-                    set(sorted(map(lambda num: int(num), self.configuration.parked_vehicles_lane_indices)))
+                    set(
+                        sorted(
+                            map(
+                                lambda num: int(num),
+                                self.configuration.parked_vehicles_lane_indices,
+                            )
+                        )
+                    )
                 ),
-                position_ego=(self.configuration.position_ego[0], self.configuration.position_ego[1]),
+                position_ego=(
+                    self.configuration.position_ego[0],
+                    self.configuration.position_ego[1],
+                ),
             )
 
             self.env.num_lanes = self.configuration.num_lanes
             self.env.goal_lane_idx = self.configuration.goal_lane_idx
             self.env.heading_ego = self.configuration.heading_ego
-            self.env.parked_vehicles_lane_indices = self.configuration.parked_vehicles_lane_indices
+            self.env.parked_vehicles_lane_indices = (
+                self.configuration.parked_vehicles_lane_indices
+            )
             self.env.position_ego = self.configuration.position_ego
         obs_reset = self.env.reset()
         image = self.env.render("rgb_array")
@@ -104,8 +125,16 @@ class ParkingEnvWrapper(EnvWrapper):
     def close(self) -> None:
         self.env.close()
 
-    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict, p: float = 0.5) -> float:
-        return self.env.compute_reward(achieved_goal=achieved_goal, desired_goal=desired_goal, info=info, p=p)
+    def compute_reward(
+        self,
+        achieved_goal: np.ndarray,
+        desired_goal: np.ndarray,
+        info: dict,
+        p: float = 0.5,
+    ) -> float:
+        return self.env.compute_reward(
+            achieved_goal=achieved_goal, desired_goal=desired_goal, info=info, p=p
+        )
 
     def send_agent_state(self, agent_state: Dict) -> None:
         self.agent_state = agent_state

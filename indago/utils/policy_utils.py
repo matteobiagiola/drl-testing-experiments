@@ -16,19 +16,30 @@ from log import Log
 
 
 def instantiated_avf(
-        env_name: str,
-        algo: str,
-        folder: str,
-        seed: int,
-        env_id: str,
-        exp_id: int,
-        regression: bool = False,
-        exp_file: str = None,
-        resume_dir: str = None
+    env_name: str,
+    algo: str,
+    folder: str,
+    seed: int,
+    env_id: str,
+    exp_id: int,
+    regression: bool = False,
+    minimize: bool = False,
+    exp_file: str = None,
+    resume_dir: str = None,
 ) -> Tuple[str, Avf]:
 
-    log_path = get_training_logs_path(folder=folder, algo=algo, env_id=env_id, exp_id=exp_id, resume_dir=resume_dir)
-    avf = Avf(env_name=env_name, log_path=log_path, storing_logs=False, seed=seed, regression=regression, exp_file=exp_file)
+    log_path = get_training_logs_path(
+        folder=folder, algo=algo, env_id=env_id, exp_id=exp_id, resume_dir=resume_dir
+    )
+    avf = Avf(
+        env_name=env_name,
+        log_path=log_path,
+        storing_logs=False,
+        seed=seed,
+        regression=regression,
+        minimize=minimize,
+        exp_file=exp_file,
+    )
 
     return log_path, avf
 
@@ -45,18 +56,21 @@ def instantiate_trained_policy(
     enjoy_mode: bool = True,
     testing_strategy: str = None,
     regression: bool = False,
+    minimize: bool = False,
     vae_path: str = None,
     add_to_port: int = 0,
     simulation_mul: int = 1,
     z_size: int = 64,
     exe_path: str = None,
     exp_file: str = None,
-    resume_dir: str = None
+    resume_dir: str = None,
 ) -> Tuple[BaseAlgorithm, Avf, VecEnv, str, str]:
 
     logger = Log("instantiate_model")
 
-    assert 1 <= simulation_mul <= 5, "Simulation multiplier for DonkeyCar simulator must be in [1, 5], found {}".format(
+    assert (
+        1 <= simulation_mul <= 5
+    ), "Simulation multiplier for DonkeyCar simulator must be in [1, 5], found {}".format(
         simulation_mul
     )
     simulator_scene = SIMULATOR_SCENES_DICT["generated_track"]
@@ -70,7 +84,9 @@ def instantiate_trained_policy(
         n_stack = hyperparams["frame_stack"]
 
     if env_name == DONKEY_ENV_NAME:
-        assert env_id == "DonkeyVAE-v0", "env_id must be DonkeyVAE, found: {}".format(env_id)
+        assert env_id == "DonkeyVAE-v0", "env_id must be DonkeyVAE, found: {}".format(
+            env_id
+        )
         env_id = "DonkeyVAE-v0-scene-{}".format(simulator_scene.get_scene_name())
 
     normalize = False
@@ -95,14 +111,18 @@ def instantiate_trained_policy(
         env_id=env_id,
         exp_id=exp_id,
         regression=regression,
+        minimize=minimize,
         exp_file=exp_file,
-        resume_dir=resume_dir
+        resume_dir=resume_dir,
     )
 
     if enjoy_mode:
         logging.basicConfig(
             filename=os.path.join(
-                log_path, "enjoy_best.txt" if model_checkpoint == -1 else "enjoy_checkpoint_{}.txt".format(model_checkpoint)
+                log_path,
+                "enjoy_best.txt"
+                if model_checkpoint == -1
+                else "enjoy_checkpoint_{}.txt".format(model_checkpoint),
             ),
             filemode="w",
             level=logging.DEBUG,
@@ -112,17 +132,24 @@ def instantiate_trained_policy(
 
         if exp_file is not None:
             testing_strategy += (
-                "_" + exp_file[exp_file.rindex(os.sep) : exp_file.rindex(".")].replace("testing-", "")
+                "_"
+                + exp_file[exp_file.rindex(os.sep) : exp_file.rindex(".")].replace(
+                    "testing-", ""
+                )
                 if os.sep in exp_file
                 else "_" + exp_file[: exp_file.rindex(".")].replace("testing-", "")
             )
 
         logging.basicConfig(
-            filename=os.path.join(log_path, "testing-{}.txt".format(testing_strategy)), filemode="w", level=logging.DEBUG
+            filename=os.path.join(log_path, "testing-{}.txt".format(testing_strategy)),
+            filemode="w",
+            level=logging.DEBUG,
         )
 
     if model_checkpoint != -1:
-        model_path = os.path.join(log_path, "model-checkpoint-{}.zip".format(model_checkpoint))
+        model_path = os.path.join(
+            log_path, "model-checkpoint-{}.zip".format(model_checkpoint)
+        )
     else:
         model_path = os.path.join(log_path, "best_model.zip")
 
@@ -132,7 +159,9 @@ def instantiate_trained_policy(
     )  # it is here so that it appears in the logs (seed is set in experiments.py)
 
     assert os.path.isdir(log_path), "The {} folder was not found".format(log_path)
-    assert os.path.isfile(model_path), "No model found for {} on {}, path: {}".format(algo, env_id, model_path)
+    assert os.path.isfile(model_path), "No model found for {} on {}, path: {}".format(
+        algo, env_id, model_path
+    )
 
     if env_name == DONKEY_ENV_NAME:
         # the first time the environment is instantiated it needs a track which can be any track, since the first
@@ -178,4 +207,10 @@ def instantiate_trained_policy(
             env.norm_reward = False
 
     # sets the seed
-    return ALGOS[algo].load(path=model_path, env=env, seed=seed), avf, env, log_path, testing_strategy
+    return (
+        ALGOS[algo].load(path=model_path, env=env, seed=seed),
+        avf,
+        env,
+        log_path,
+        testing_strategy,
+    )

@@ -5,12 +5,16 @@ import scipy.stats as stats
 
 
 def wilcoxon_test(a: List[float], b: List[float]) -> Tuple[float, float]:
-    assert len(a) == len(b), "The two list must be of the same length: {}, {}".format(len(a), len(b))
+    assert len(a) == len(b), "The two list must be of the same length: {}, {}".format(
+        len(a), len(b)
+    )
     return stats.wilcoxon(a, b)
 
 
 def mannwhitney_test(a: List[float], b: List[float]) -> Tuple[float, float]:
-    assert len(a) == len(b), "The two list must be of the same length: {}, {}".format(len(a), len(b))
+    assert len(a) == len(b), "The two list must be of the same length: {}, {}".format(
+        len(a), len(b)
+    )
     return stats.mannwhitneyu(a, b)
 
 

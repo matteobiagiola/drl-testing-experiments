@@ -84,12 +84,18 @@ def load_from_zip_file(
                 # Load class parameters that are stored
                 # with either JSON or pickle (not PyTorch variables).
                 json_data = archive.read("data").decode()
-                data = json_to_data(json_data, custom_objects=custom_objects, algo_name=algo_name)
+                data = json_to_data(
+                    json_data, custom_objects=custom_objects, algo_name=algo_name
+                )
 
             # Check for all .pth files and load them using th.load.
             # "pytorch_variables.pth" stores PyTorch variables, and any other .pth
             # files store state_dicts of variables with custom names (e.g. policy, policy.optimizer)
-            pth_files = [file_name for file_name in namelist if os.path.splitext(file_name)[1] == ".pth"]
+            pth_files = [
+                file_name
+                for file_name in namelist
+                if os.path.splitext(file_name)[1] == ".pth"
+            ]
             for file_path in pth_files:
                 with archive.open(file_path, mode="r") as param_file:
                     # File has to be seekable, but param_file is not, so load in BytesIO first
@@ -102,7 +108,10 @@ def load_from_zip_file(
                     # Remove ".pth" ending with splitext
                     th_object = th.load(file_content, map_location=device)
                     # "tensors.pth" was renamed "pytorch_variables.pth" in v0.9.0, see PR #138
-                    if file_path == "pytorch_variables.pth" or file_path == "tensors.pth":
+                    if (
+                        file_path == "pytorch_variables.pth"
+                        or file_path == "tensors.pth"
+                    ):
                         # PyTorch variables (not state_dicts)
                         pytorch_variables = th_object
                     else:
@@ -115,7 +124,11 @@ def load_from_zip_file(
     return data, params, pytorch_variables
 
 
-def json_to_data(json_string: str, custom_objects: Optional[Dict[str, Any]] = None, algo_name: str = None) -> Dict[str, Any]:
+def json_to_data(
+    json_string: str,
+    custom_objects: Optional[Dict[str, Any]] = None,
+    algo_name: str = None,
+) -> Dict[str, Any]:
     """
     Turn JSON serialization of class-parameters back into dictionary.
 

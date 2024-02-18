@@ -15,6 +15,7 @@ WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON INFRINGE
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
+
 import base64
 import platform
 from io import BytesIO
@@ -30,7 +31,7 @@ from indago.avf.env_configuration import EnvConfiguration
 from indago.env_wrapper import EnvWrapper
 from indago.envs.humanoid.humanoid_training_logs import HumanoidTrainingLogs
 
-MAX_TIMESTEPS = 300  # new training
+MAX_TIMESTEPS = 300
 
 
 def mass_center(model, sim):
@@ -48,10 +49,11 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
         self.first_frame_string = None
         self.actions = []
         self.rewards = []
+        self.fitness_values = []
         self.obs = []
         self.abdomen_trajectory = []
 
-        mujoco_env.MujocoEnv.__init__(self, "humanoid.xml", 5)
+        mujoco_env.MujocoEnv.__init__(self, "humanoid.xml", 1)
         utils.EzPickle.__init__(self)
         indago.env_wrapper.EnvWrapper.__init__(self, avf=avf)
 
@@ -88,6 +90,13 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
         reward = lin_vel_cost - quad_ctrl_cost - quad_impact_cost + alive_bonus
         qpos = self.sim.data.qpos
         done_fall = bool((qpos[2] < 1.0) or (qpos[2] > 2.0))
+        if done_fall:
+            fitness = 0.0
+        else:
+            fitness = (float(qpos[2]) - 1.0) / (2.0 - 1.0)
+
+        self.fitness_values.append(fitness)
+
         done_time = self.max_timesteps <= 0
         state = self._get_obs()
         info = dict(
@@ -96,6 +105,7 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
             reward_alive=alive_bonus,
             reward_impact=-quad_impact_cost,
             is_success=done_time,
+            fitness=fitness,
         )
         actions = list(map(lambda action: float(action), a))
         self.actions.append(actions)
@@ -104,14 +114,12 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
         self.max_timesteps -= 1
         done = done_fall or done_time
         if done:
-            # assert self.first_frame_string is not None, 'First frame not yet encoded'
             humanoid_training_logs = HumanoidTrainingLogs(
                 is_success=int(info["is_success"]),
                 agent_state=self.agent_state,
                 first_frame_string=self.first_frame_string,
                 config=self.configuration,
-                actions=self.actions,
-                rewards=self.rewards,
+                fitness_values=self.fitness_values,
                 state=state,
                 abdomen_trajectory=self.abdomen_trajectory,
             )
@@ -120,6 +128,7 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
             self.actions.clear()
             self.rewards.clear()
             self.abdomen_trajectory.clear()
+            self.fitness_values.clear()
 
         return state, reward, done, info
 
@@ -130,7 +139,8 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
         if not end_of_episode:
             self.configuration = self.avf.generate_env_configuration()
             self.configuration.update_implementation(
-                qpos=self.configuration.qpos, qvel=self.configuration.qvel,
+                qpos=self.configuration.qpos,
+                qvel=self.configuration.qvel,
             )
             self.qpos = self.configuration.qpos
             self.qvel = self.configuration.qvel
@@ -144,7 +154,9 @@ class HumanoidEnvWrapper(mujoco_env.MujocoEnv, utils.EzPickle, EnvWrapper):
             buffered = BytesIO()
             pil_image = Image.fromarray(image)
             pil_image.save(buffered, optimize=True, format="PNG", quality=95)
-            self.first_frame_string = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            self.first_frame_string = base64.b64encode(buffered.getvalue()).decode(
+                "utf-8"
+            )
 
         return self._get_obs()
 

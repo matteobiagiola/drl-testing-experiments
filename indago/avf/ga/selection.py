@@ -1,12 +1,16 @@
 from typing import List
 
-from indago.avf.ga.chromsome import Chromosome
+from indago.avf.ga.chromosome import Chromosome
 from indago.utils import randomness
 
 
-def roulette_wheel_selection(population: List[Chromosome], miminize: bool = True) -> Chromosome:
+def roulette_wheel_selection(
+    population: List[Chromosome], miminize: bool = True
+) -> Chromosome:
     sum_of_fitnesses = (
-        sum([c.fitness for c in population]) if not miminize else sum([(1 / (c.fitness + 1)) for c in population])
+        sum([c.fitness for c in population])
+        if not miminize
+        else sum([(1 / (c.fitness + 1)) for c in population])
     )
 
     if sum_of_fitnesses == 0.0:

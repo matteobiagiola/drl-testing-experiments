@@ -48,11 +48,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--z-size", help="Latent space", type=int, default=64)
     parser.add_argument("--seed", help="Random generator seed", type=int, default=-1)
-    parser.add_argument("--n-samples", help="Max number of samples", type=int, default=-1)
-    parser.add_argument("--num-workers", help="Num workers for data loader", type=int, default=2)
+    parser.add_argument(
+        "--n-samples", help="Max number of samples", type=int, default=-1
+    )
+    parser.add_argument(
+        "--num-workers", help="Num workers for data loader", type=int, default=2
+    )
     parser.add_argument("--batch-size", help="Batch size", type=int, default=64)
-    parser.add_argument("--learning-rate", help="Learning rate", type=float, default=1e-4)
-    parser.add_argument("--kl-tolerance", help="KL tolerance (to cap KL loss)", type=float, default=0.5)
+    parser.add_argument(
+        "--learning-rate", help="Learning rate", type=float, default=1e-4
+    )
+    parser.add_argument(
+        "--kl-tolerance", help="KL tolerance (to cap KL loss)", type=float, default=0.5
+    )
     parser.add_argument("--n-epochs", help="Number of epochs", type=int, default=10)
     parser.add_argument("--verbose", help="Verbosity", type=int, default=0)
     parser.add_argument("--augment", help="Data augmentation", action="store_true")
@@ -62,13 +70,17 @@ if __name__ == "__main__":
 
     simulator_scene = SIMULATOR_SCENES_DICT["generated_track"]
 
-    assert os.path.exists(os.path.join("logs", "{}".format(simulator_scene.get_scene_name()))), "{} does not exist".format(
+    assert os.path.exists(
+        os.path.join("logs", "{}".format(simulator_scene.get_scene_name()))
+    ), "{} does not exist".format(
         os.path.join("logs", "{}".format(simulator_scene.get_scene_name()))
     )
 
     logging.basicConfig(
         filename=os.path.join(
-            os.path.join("logs", "{}".format(simulator_scene.get_scene_name(), args.z_size)),
+            os.path.join(
+                "logs", "{}".format(simulator_scene.get_scene_name(), args.z_size)
+            ),
             "vae-train-{}.txt".format(args.z_size),
         ),
         filemode="w",
@@ -76,14 +88,18 @@ if __name__ == "__main__":
     )
 
     if args.seed == -1:
-        args.seed = np.random.randint(2 ** 32 - 1)
+        args.seed = np.random.randint(2**32 - 1)
 
     set_random_seed(args.seed)
 
     logger.info("Args: {}".format(args))
     if args.expert:
-        expert_dataset_filepath = os.path.join("logs", "{}".format(simulator_scene.get_scene_name()), "expert_dataset.npz")
-        assert os.path.exists(expert_dataset_filepath), "{} does not exist".format(expert_dataset_filepath)
+        expert_dataset_filepath = os.path.join(
+            "logs", "{}".format(simulator_scene.get_scene_name()), "expert_dataset.npz"
+        )
+        assert os.path.exists(expert_dataset_filepath), "{} does not exist".format(
+            expert_dataset_filepath
+        )
 
         expert_dataset = np.load(expert_dataset_filepath)
 
@@ -96,8 +112,12 @@ if __name__ == "__main__":
             image_array = np.array(image, dtype=np.float32)
             images[idx] = image_array
     else:
-        images_filepath = os.path.join("logs", "{}".format(simulator_scene.get_scene_name()), "vae_images")
-        assert os.path.exists(images_filepath), "{} does not exist".format(images_filepath)
+        images_filepath = os.path.join(
+            "logs", "{}".format(simulator_scene.get_scene_name()), "vae_images"
+        )
+        assert os.path.exists(images_filepath), "{} does not exist".format(
+            images_filepath
+        )
 
         images = []
         for image_path in os.listdir(images_filepath):
@@ -129,21 +149,37 @@ if __name__ == "__main__":
     # list is the id of the observation preserved through the training
     minibatchlist_train = [
         np.array(sorted(indices_train[start_idx : start_idx + args.batch_size]))
-        for start_idx in range(0, len(indices_train) - args.batch_size + 1, args.batch_size)
+        for start_idx in range(
+            0, len(indices_train) - args.batch_size + 1, args.batch_size
+        )
     ]
     minibatchlist_validation = [
         np.array(sorted(indices_validation[start_idx : start_idx + args.batch_size]))
-        for start_idx in range(0, len(indices_validation) - args.batch_size + 1, args.batch_size)
+        for start_idx in range(
+            0, len(indices_validation) - args.batch_size + 1, args.batch_size
+        )
     ]
 
     data_loader_train = DataLoader(
-        minibatchlist_train, images, n_workers=args.num_workers, image_path=image_path, augment=args.augment
+        minibatchlist_train,
+        images,
+        n_workers=args.num_workers,
+        image_path=image_path,
+        augment=args.augment,
     )
     data_loader_validation = DataLoader(
-        minibatchlist_validation, images, n_workers=args.num_workers, image_path=image_path, augment=args.augment
+        minibatchlist_validation,
+        images,
+        n_workers=args.num_workers,
+        image_path=image_path,
+        augment=args.augment,
     )
 
-    save_path = os.path.join("logs", "{}".format(simulator_scene.get_scene_name()), "vae-{}.pkl".format(args.z_size))
+    save_path = os.path.join(
+        "logs",
+        "{}".format(simulator_scene.get_scene_name()),
+        "vae-{}.pkl".format(args.z_size),
+    )
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     vae = VAE(in_channels=3, latent_dim=args.z_size).to(DEVICE)
@@ -191,11 +227,17 @@ if __name__ == "__main__":
 
                 val_loss /= len(indices_validation)
                 val_losses.append(val_loss)
-                logger.info("{}/{} Validation loss: {}".format(epoch, args.n_epochs, val_loss))
+                logger.info(
+                    "{}/{} Validation loss: {}".format(epoch, args.n_epochs, val_loss)
+                )
 
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
-                    logger.info("New best loss: {}. Saving VAE to path: {}".format(best_val_loss, save_path))
+                    logger.info(
+                        "New best loss: {}. Saving VAE to path: {}".format(
+                            best_val_loss, save_path
+                        )
+                    )
                     vae.save(filepath=save_path)
             else:
                 if len(val_losses) > 0:
@@ -212,6 +254,10 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.legend()
     plt.savefig(
-        os.path.join("logs", "{}".format(simulator_scene.get_scene_name()), "training-loss-{}.pdf".format(args.z_size)),
+        os.path.join(
+            "logs",
+            "{}".format(simulator_scene.get_scene_name()),
+            "training-loss-{}.pdf".format(args.z_size),
+        ),
         format="pdf",
     )

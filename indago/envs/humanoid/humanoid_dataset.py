@@ -21,7 +21,8 @@ class HumanoidDataset(Dataset):
         mapping["qvel"] = list(
             range(
                 len(humanoid_env_configuration.qpos),
-                len(humanoid_env_configuration.qpos) + len(humanoid_env_configuration.qvel),
+                len(humanoid_env_configuration.qpos)
+                + len(humanoid_env_configuration.qvel),
             )
         )
         return mapping
@@ -29,7 +30,9 @@ class HumanoidDataset(Dataset):
     @staticmethod
     def transform_mlp(env_configuration: EnvConfiguration) -> np.ndarray:
         humanoid_env_configuration = cast(HumanoidEnvConfiguration, env_configuration)
-        return np.concatenate((humanoid_env_configuration.qpos, humanoid_env_configuration.qvel), axis=0)
+        return np.concatenate(
+            (humanoid_env_configuration.qpos, humanoid_env_configuration.qvel), axis=0
+        )
 
     def get_feature_names(self) -> List[str]:
         # bound to transform_mlp method, in particular the order
@@ -44,26 +47,35 @@ class HumanoidDataset(Dataset):
         data: np.ndarray, labels: np.ndarray, regression: bool
     ) -> Tuple[Optional[Scaler], Optional[Scaler]]:
         if regression:
-            # input_scaler = MinMaxScaler()
-            # input_scaler.fit(X=data)
             output_scaler = MinMaxScaler()
             output_scaler.fit(X=labels)
             return None, output_scaler
 
         input_scaler = StandardScaler()
         input_scaler.fit(X=data)
-        # return input_scaler, None
         return None, None
 
-    def get_original_env_configuration(self, env_config_transformed: np.ndarray) -> EnvConfiguration:
+    def get_original_env_configuration(
+        self, env_config_transformed: np.ndarray
+    ) -> EnvConfiguration:
         humanoid_env_configuration = HumanoidEnvConfiguration()
-        humanoid_env_configuration.qpos = env_config_transformed[: len(humanoid_env_configuration.init_qpos)]
+        humanoid_env_configuration.qpos = env_config_transformed[
+            : len(humanoid_env_configuration.init_qpos)
+        ]
         humanoid_env_configuration.qvel = env_config_transformed[
-            len(humanoid_env_configuration.init_qpos) : len(humanoid_env_configuration.init_qvel)
+            len(humanoid_env_configuration.init_qpos) : len(
+                humanoid_env_configuration.init_qvel
+            )
         ]
         return humanoid_env_configuration
 
-    def compute_distance(self, env_config_1: EnvConfiguration, env_config_2: EnvConfiguration) -> float:
-        env_config_1_transformed = self.transform_env_configuration(env_configuration=env_config_1, policy=self.policy)
-        env_config_2_transformed = self.transform_env_configuration(env_configuration=env_config_2, policy=self.policy)
+    def compute_distance(
+        self, env_config_1: EnvConfiguration, env_config_2: EnvConfiguration
+    ) -> float:
+        env_config_1_transformed = self.transform_env_configuration(
+            env_configuration=env_config_1, policy=self.policy
+        )
+        env_config_2_transformed = self.transform_env_configuration(
+            env_configuration=env_config_2, policy=self.policy
+        )
         return euclidean(u=env_config_1_transformed, v=env_config_2_transformed)

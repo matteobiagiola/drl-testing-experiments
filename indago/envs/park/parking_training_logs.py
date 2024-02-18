@@ -17,6 +17,7 @@ class ParkingTrainingLogs(TrainingLogs):
         is_success: int,
         agent_state: Dict,
         first_frame_string: str,
+        fitness_values: List[float],
         actions: List[Tuple[float, float]],
         rewards: List[float],
         speeds: List[float],
@@ -34,9 +35,12 @@ class ParkingTrainingLogs(TrainingLogs):
         self.actions = actions
         self.rewards = rewards
         self.speeds = speeds
+        self.fitness_values = fitness_values
         self.car_trajectory = car_trajectory
         # episode length
-        self.regression_value = len(rewards)
+        self.regression_value = (
+            len(rewards) if fitness_values is None else np.min(fitness_values)
+        )
         self.goal_position = goal_position
         self.parked_vehicle_positions = parked_vehicle_positions
 
@@ -46,6 +50,7 @@ class ParkingTrainingLogs(TrainingLogs):
             "agent_state": self.agent_state,
             "first_frame_string": self.first_frame_string,
             "env_config": self.config.impl,
+            "fitness_values": self.fitness_values,
             "actions": self.actions,
             "rewards": self.rewards,
             "speeds": self.speeds,
@@ -65,7 +70,9 @@ class ParkingTrainingLogs(TrainingLogs):
     def get_training_progress(self) -> float:
         if self.is_agent_state_empty():
             return 0.0
-        assert "training_progress" in self.agent_state, "Key training_progress not present in agent state: {}".format(
+        assert (
+            "training_progress" in self.agent_state
+        ), "Key training_progress not present in agent state: {}".format(
             self.agent_state
         )
         return self.agent_state["training_progress"]
@@ -79,15 +86,29 @@ class ParkingTrainingLogs(TrainingLogs):
         canvas = FigureCanvasAgg(fig)
         ax = fig.add_subplot()
         ax.axis("off")
-        ax.scatter(self.config.impl["position_ego"][0], self.config.impl["position_ego"][1], c="black", s=200)
-        car_trajectory_x = [car_trajectory_item[0] for car_trajectory_item in self.car_trajectory]
-        car_trajectory_y = [car_trajectory_item[1] for car_trajectory_item in self.car_trajectory]
+        ax.scatter(
+            self.config.impl["position_ego"][0],
+            self.config.impl["position_ego"][1],
+            c="black",
+            s=200,
+        )
+        car_trajectory_x = [
+            car_trajectory_item[0] for car_trajectory_item in self.car_trajectory
+        ]
+        car_trajectory_y = [
+            car_trajectory_item[1] for car_trajectory_item in self.car_trajectory
+        ]
         ax.scatter(car_trajectory_x, car_trajectory_y, c="blue", s=50)
         if self.goal_position is not None:
             ax.scatter(self.goal_position[0], self.goal_position[1], c="red", s=200)
         if self.parked_vehicle_positions is not None:
             for i in range(len(self.parked_vehicle_positions)):
-                ax.scatter(self.parked_vehicle_positions[i][0], self.parked_vehicle_positions[i][1], c="green", s=200)
+                ax.scatter(
+                    self.parked_vehicle_positions[i][0],
+                    self.parked_vehicle_positions[i][1],
+                    c="green",
+                    s=200,
+                )
 
         canvas.draw()
         buf = canvas.buffer_rgba()
@@ -108,7 +129,9 @@ class ParkingTrainingLogs(TrainingLogs):
     def get_exploration_coefficient(self) -> float:
         if self.is_agent_state_empty():
             return 0.0
-        assert "ent_coef" in self.agent_state, "Key ent_coef not present in agent state: {}".format(self.agent_state)
+        assert (
+            "ent_coef" in self.agent_state
+        ), "Key ent_coef not present in agent state: {}".format(self.agent_state)
         return self.agent_state["ent_coef"]
 
     def get_config(self) -> EnvConfiguration:

@@ -37,7 +37,7 @@ from log import Log
 
 class SimClient(SDClient):
     """
-      Handles messages from a single TCP client.
+    Handles messages from a single TCP client.
     """
 
     def __init__(self, address, socket_local_address, msg_handler):

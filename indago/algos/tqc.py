@@ -162,7 +162,9 @@ class TQC(OffPolicyAlgorithm):
         # Target entropy is used when learning the entropy coefficient
         if self.target_entropy == "auto":
             # automatically set target entropy if needed
-            self.target_entropy = -np.prod(self.env.action_space.shape).astype(np.float32)
+            self.target_entropy = -np.prod(self.env.action_space.shape).astype(
+                np.float32
+            )
         else:
             # Force conversion
             # this will also throw an error for unexpected string
@@ -176,12 +178,18 @@ class TQC(OffPolicyAlgorithm):
             init_value = 1.0
             if "_" in self.ent_coef:
                 init_value = float(self.ent_coef.split("_")[1])
-                assert init_value > 0.0, "The initial value of ent_coef must be greater than 0"
+                assert (
+                    init_value > 0.0
+                ), "The initial value of ent_coef must be greater than 0"
 
             # Note: we optimize the log of the entropy coeff which is slightly different from the paper
             # as discussed in https://github.com/rail-berkeley/softlearning/issues/37
-            self.log_ent_coef = th.log(th.ones(1, device=self.device) * init_value).requires_grad_(True)
-            self.ent_coef_optimizer = th.optim.Adam([self.log_ent_coef], lr=self.lr_schedule(1))
+            self.log_ent_coef = th.log(
+                th.ones(1, device=self.device) * init_value
+            ).requires_grad_(True)
+            self.ent_coef_optimizer = th.optim.Adam(
+                [self.log_ent_coef], lr=self.lr_schedule(1)
+            )
         else:
             # Force conversion to float
             # this will throw an error if a malformed string (different from 'auto')
@@ -207,7 +215,9 @@ class TQC(OffPolicyAlgorithm):
 
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
-            replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+            replay_data = self.replay_buffer.sample(
+                batch_size, env=self._vec_normalize_env
+            )
 
             # We need to sample because `log_std` may have changed between two gradient steps
             if self.use_sde:
@@ -223,7 +233,9 @@ class TQC(OffPolicyAlgorithm):
                 # so we don't change it with other losses
                 # see https://github.com/rail-berkeley/softlearning/issues/60
                 ent_coef = th.exp(self.log_ent_coef.detach())
-                ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
+                ent_coef_loss = -(
+                    self.log_ent_coef * (log_prob + self.target_entropy).detach()
+                ).mean()
                 ent_coef_losses.append(ent_coef_loss.item())
             else:
                 ent_coef = self.ent_coef_tensor
@@ -240,26 +252,42 @@ class TQC(OffPolicyAlgorithm):
 
             with th.no_grad():
                 # Select action according to policy
-                next_actions, next_log_prob = self.actor.action_log_prob(replay_data.next_observations)
+                next_actions, next_log_prob = self.actor.action_log_prob(
+                    replay_data.next_observations
+                )
                 # Compute and cut quantiles at the next state
                 # batch x nets x quantiles
-                next_quantiles = self.critic_target(replay_data.next_observations, next_actions)
+                next_quantiles = self.critic_target(
+                    replay_data.next_observations, next_actions
+                )
 
                 # Sort and drop top k quantiles to control overestimation.
-                n_target_quantiles = self.critic.quantiles_total - self.top_quantiles_to_drop_per_net * self.critic.n_critics
+                n_target_quantiles = (
+                    self.critic.quantiles_total
+                    - self.top_quantiles_to_drop_per_net * self.critic.n_critics
+                )
                 next_quantiles, _ = th.sort(next_quantiles.reshape(batch_size, -1))
                 next_quantiles = next_quantiles[:, :n_target_quantiles]
 
                 # td error + entropy term
-                target_quantiles = next_quantiles - ent_coef * next_log_prob.reshape(-1, 1)
-                target_quantiles = replay_data.rewards + (1 - replay_data.dones) * self.gamma * target_quantiles
+                target_quantiles = next_quantiles - ent_coef * next_log_prob.reshape(
+                    -1, 1
+                )
+                target_quantiles = (
+                    replay_data.rewards
+                    + (1 - replay_data.dones) * self.gamma * target_quantiles
+                )
                 # Make target_quantiles broadcastable to (batch_size, n_critics, n_target_quantiles).
                 target_quantiles.unsqueeze_(dim=1)
 
             # Get current Quantile estimates using action from the replay buffer
-            current_quantiles = self.critic(replay_data.observations, replay_data.actions)
+            current_quantiles = self.critic(
+                replay_data.observations, replay_data.actions
+            )
             # Compute critic loss, not summing over the quantile dimension as in the paper.
-            critic_loss = quantile_huber_loss(current_quantiles, target_quantiles, sum_over_quantiles=False)
+            critic_loss = quantile_huber_loss(
+                current_quantiles, target_quantiles, sum_over_quantiles=False
+            )
             critic_losses.append(critic_loss.item())
 
             # Optimize the critic
@@ -268,7 +296,11 @@ class TQC(OffPolicyAlgorithm):
             self.critic.optimizer.step()
 
             # Compute actor loss
-            qf_pi = self.critic(replay_data.observations, actions_pi).mean(dim=2).mean(dim=1, keepdim=True)
+            qf_pi = (
+                self.critic(replay_data.observations, actions_pi)
+                .mean(dim=2)
+                .mean(dim=1, keepdim=True)
+            )
             actor_loss = (ent_coef * log_prob - qf_pi).mean()
             actor_losses.append(actor_loss.item())
 
@@ -279,7 +311,9 @@ class TQC(OffPolicyAlgorithm):
 
             # Update target networks
             if gradient_step % self.target_update_interval == 0:
-                polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
+                polyak_update(
+                    self.critic.parameters(), self.critic_target.parameters(), self.tau
+                )
 
         self._n_updates += gradient_steps
 
@@ -317,7 +351,11 @@ class TQC(OffPolicyAlgorithm):
 
     def _excluded_save_params(self) -> List[str]:
         # Exclude aliases
-        return super(TQC, self)._excluded_save_params() + ["actor", "critic", "critic_target"]
+        return super(TQC, self)._excluded_save_params() + [
+            "actor",
+            "critic",
+            "critic_target",
+        ]
 
     def _get_torch_save_params(self) -> Tuple[List[str], List[str]]:
         state_dicts = ["policy", "actor.optimizer", "critic.optimizer"]

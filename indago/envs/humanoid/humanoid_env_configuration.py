@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from PIL import Image
 
-from indago.avf.env_configuration import EnvConfiguration, EnvMutations
+from indago.avf.env_configuration import EnvConfiguration
 from indago.config import PARAM_SEPARATOR, C
 from indago.envs.humanoid.humanoid_env_wrapper import HumanoidEnvWrapper
 from indago.utils.randomness import get_randint_sample, get_random_float, get_random_int
@@ -14,7 +14,9 @@ from indago.utils.randomness import get_randint_sample, get_random_float, get_ra
 
 class HumanoidEnvConfiguration(EnvConfiguration):
     def __init__(
-        self, qpos: np.ndarray = None, qvel: np.ndarray = None,
+        self,
+        qpos: np.ndarray = None,
+        qvel: np.ndarray = None,
     ):
         super().__init__()
         self.init_qpos = np.asarray(
@@ -65,11 +67,16 @@ class HumanoidEnvConfiguration(EnvConfiguration):
     def generate_configuration(self) -> "EnvConfiguration":
 
         while not self._is_valid():
-            self.qpos = self.init_qpos + np.random.uniform(low=-self.c, high=self.c, size=self.init_qpos.shape)
-            self.qvel = self.init_qvel + np.random.uniform(low=-self.c, high=self.c, size=self.init_qvel.shape)
+            self.qpos = self.init_qpos + np.random.uniform(
+                low=-self.c, high=self.c, size=self.init_qpos.shape
+            )
+            self.qvel = self.init_qvel + np.random.uniform(
+                low=-self.c, high=self.c, size=self.init_qvel.shape
+            )
 
         self.update_implementation(
-            qpos=self.qpos, qvel=self.qvel,
+            qpos=self.qpos,
+            qvel=self.qvel,
         )
 
         return self
@@ -98,7 +105,11 @@ class HumanoidEnvConfiguration(EnvConfiguration):
         return np.asarray(pil_image)
 
     def get_str(self) -> str:
-        return "{}{}{}".format(list(self.qpos), PARAM_SEPARATOR, list(self.qvel),)
+        return "{}{}{}".format(
+            list(self.qpos),
+            PARAM_SEPARATOR,
+            list(self.qvel),
+        )
 
     def str_to_config(self, s: str) -> "EnvConfiguration":
         split = s.split(PARAM_SEPARATOR)
@@ -110,7 +121,8 @@ class HumanoidEnvConfiguration(EnvConfiguration):
         assert self.qvel.shape[0] == self.init_qvel.shape[0], "Length does not match"
 
         self.update_implementation(
-            qpos=self.qpos, qvel=self.qvel,
+            qpos=self.qpos,
+            qvel=self.qvel,
         )
 
         return self
@@ -120,9 +132,13 @@ class HumanoidEnvConfiguration(EnvConfiguration):
         # FIXME: change only one parameter (i.e. either qpos or qvel) with equal probability
 
         qpos_shape = get_random_int(low=1, high=self.init_qpos.shape[0])
-        qpos_indices = get_randint_sample(low=0, high=self.init_qpos.shape[0], count=qpos_shape)
+        qpos_indices = get_randint_sample(
+            low=0, high=self.init_qpos.shape[0], count=qpos_shape
+        )
         qvel_shape = get_random_int(low=1, high=self.init_qvel.shape[0])
-        qvel_indices = get_randint_sample(low=0, high=self.init_qvel.shape[0], count=qvel_shape)
+        qvel_indices = get_randint_sample(
+            low=0, high=self.init_qvel.shape[0], count=qvel_shape
+        )
         new_env_config = copy.deepcopy(self)
         for idx in range(len(qpos_indices)):
             num = np.random.uniform(low=-self.c, high=self.c, size=1)
@@ -143,7 +159,9 @@ class HumanoidEnvConfiguration(EnvConfiguration):
 
         return None
 
-    def mutate_idx_vector(self, idx_to_mutate: int, v: List[int], sign: str = "rnd") -> None:
+    def mutate_idx_vector(
+        self, idx_to_mutate: int, v: List[int], sign: str = "rnd"
+    ) -> None:
         num = np.random.uniform(low=-self.c, high=self.c, size=1)
         if sign == "pos":
             v[idx_to_mutate] += num
@@ -155,16 +173,36 @@ class HumanoidEnvConfiguration(EnvConfiguration):
             else:
                 v[idx_to_mutate] -= num
 
-    def mutate_vector(self, idx_to_mutate: int, key_to_mutate: str, env_config: EnvConfiguration, sign: str = "rnd") -> None:
-        self.mutate_idx_vector(idx_to_mutate=idx_to_mutate, v=env_config.impl[key_to_mutate], sign=sign)
+    def mutate_vector(
+        self,
+        idx_to_mutate: int,
+        key_to_mutate: str,
+        env_config: EnvConfiguration,
+        sign: str = "rnd",
+    ) -> None:
+        self.mutate_idx_vector(
+            idx_to_mutate=idx_to_mutate, v=env_config.impl[key_to_mutate], sign=sign
+        )
 
-    def mutate_hot(self, attributions: np.ndarray, mapping: Dict) -> Optional["EnvConfiguration"]:
+    def mutate_hot(
+        self, attributions: np.ndarray, mapping: Dict, minimize: bool
+    ) -> Optional["EnvConfiguration"]:
         new_env_config = copy.deepcopy(self)
-        # get indices as if the array attributions was sorted and reverse it (::-1)
-        # indices_sort = np.argsort(attributions)[::-1]
-        idx_to_mutate = random.choices(population=list(range(0, len(attributions))), weights=np.abs(attributions), k=1)[0]
-        keys_to_mutate = list(filter(lambda key: idx_to_mutate in mapping[key], mapping.keys()))
-        assert len(keys_to_mutate) == 1, "There must be only one key where the attribution is max ({}). Found: {}".format(
+
+        if minimize:
+            attributions *= -1
+
+        idx_to_mutate = random.choices(
+            population=list(range(0, len(attributions))),
+            weights=np.abs(attributions),
+            k=1,
+        )[0]
+        keys_to_mutate = list(
+            filter(lambda key: idx_to_mutate in mapping[key], mapping.keys())
+        )
+        assert (
+            len(keys_to_mutate) == 1
+        ), "There must be only one key where the attribution is max ({}). Found: {}".format(
             idx_to_mutate, len(keys_to_mutate)
         )
         key_to_mutate = keys_to_mutate[0]
@@ -183,9 +221,13 @@ class HumanoidEnvConfiguration(EnvConfiguration):
         else:
             sign = "rnd"
 
-        # print(idx_to_mutate, key_to_mutate, mapping)
         if key_to_mutate == "qpos":
-            self.mutate_vector(idx_to_mutate=idx_to_mutate, key_to_mutate=key_to_mutate, env_config=new_env_config, sign=sign)
+            self.mutate_vector(
+                idx_to_mutate=idx_to_mutate,
+                key_to_mutate=key_to_mutate,
+                env_config=new_env_config,
+                sign=sign,
+            )
         elif key_to_mutate == "qvel":
             self.mutate_vector(
                 idx_to_mutate=idx_to_mutate - len(new_env_config.qpos),
@@ -201,14 +243,18 @@ class HumanoidEnvConfiguration(EnvConfiguration):
 
         return None
 
-    def crossover(self, other_env_config: "EnvConfiguration", pos1: int, pos2: int) -> Optional["EnvConfiguration"]:
+    def crossover(
+        self, other_env_config: "EnvConfiguration", pos1: int, pos2: int
+    ) -> Optional["EnvConfiguration"]:
         # FIXME similar to test suite crossover: implement also test case crossover
         #  (e.g. env.qpos[0] can be exchanged with other_env.qpos[0])
         new_env_config_impl = copy.deepcopy(self.impl)
         for i in range(pos1):
             new_env_config_impl[self.key_names[i]] = self.impl[self.key_names[i]]
         for i in range(pos2 + 1, self.get_length()):
-            new_env_config_impl[self.key_names[i]] = other_env_config.impl[self.key_names[i]]
+            new_env_config_impl[self.key_names[i]] = other_env_config.impl[
+                self.key_names[i]
+            ]
 
         new_env_config = HumanoidEnvConfiguration(**new_env_config_impl)
 

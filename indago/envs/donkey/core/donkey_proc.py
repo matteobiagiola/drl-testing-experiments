@@ -53,11 +53,24 @@ class DonkeyUnityProcess(object):
             return
 
         cwd = os.getcwd()
-        file_name = sim_path.strip().replace(".app", "").replace(".exe", "").replace(".x86_64", "").replace(".x86", "")
+        file_name = (
+            sim_path.strip()
+            .replace(".app", "")
+            .replace(".exe", "")
+            .replace(".x86_64", "")
+            .replace(".x86", "")
+        )
         true_filename = os.path.basename(os.path.normpath(file_name))
         launch_string = None
         self.logger.info("Simulation multiplier: {}".format(simulation_mul))
-        port_args = ["--port", str(port), "-logFile", "unitylog.txt", "--simulation-mul", str(simulation_mul)]
+        port_args = [
+            "--port",
+            str(port),
+            "-logFile",
+            "unitylog.txt",
+            "--simulation-mul",
+            str(simulation_mul),
+        ]
         platform_ = platform.system()
 
         if platform_.lower() == "linux" and sim_path:
@@ -72,13 +85,23 @@ class DonkeyUnityProcess(object):
                 launch_string = candidates[0]
 
         elif platform_.lower() == "darwin" and sim_path:
-            candidates = glob.glob(os.path.join(cwd, file_name + ".app", "Contents", "MacOS", true_filename))
+            candidates = glob.glob(
+                os.path.join(
+                    cwd, file_name + ".app", "Contents", "MacOS", true_filename
+                )
+            )
             if len(candidates) == 0:
-                candidates = glob.glob(os.path.join(file_name + ".app", "Contents", "MacOS", true_filename))
+                candidates = glob.glob(
+                    os.path.join(file_name + ".app", "Contents", "MacOS", true_filename)
+                )
             if len(candidates) == 0:
-                candidates = glob.glob(os.path.join(cwd, file_name + ".app", "Contents", "MacOS", "*"))
+                candidates = glob.glob(
+                    os.path.join(cwd, file_name + ".app", "Contents", "MacOS", "*")
+                )
             if len(candidates) == 0:
-                candidates = glob.glob(os.path.join(file_name + ".app", "Contents", "MacOS", "*"))
+                candidates = glob.glob(
+                    os.path.join(file_name + ".app", "Contents", "MacOS", "*")
+                )
             if len(candidates) > 0:
                 launch_string = candidates[0]
 
@@ -94,7 +117,9 @@ class DonkeyUnityProcess(object):
 
             # Launch Unity environment
             if headless:
-                self.process = subprocess.Popen([launch_string, "-batchmode"] + port_args)
+                self.process = subprocess.Popen(
+                    [launch_string, "-batchmode"] + port_args
+                )
             else:
                 self.process = subprocess.Popen([launch_string] + port_args)
 

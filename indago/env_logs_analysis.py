@@ -20,21 +20,53 @@ from indago.envs.park.parking_dataset import ParkingDataset
 from indago.envs.park.parking_env_configuration import ParkingEnvConfiguration
 from indago.stats.effect_size import cohend, odds_ratio_to_cohend, vargha_delaney
 from indago.stats.power_analysis import fisher_power_analysis, parametric_power_analysis
-from indago.stats.stat_tests import anova_plus_tukey, fisher_exact, mannwhitney_test, ttest_ind, wilcoxon_test
+from indago.stats.stat_tests import anova_plus_tukey, fisher_exact, mannwhitney_test
 from log import Log
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder", help="Folder where logs are", type=str, required=True)
-parser.add_argument("--env-name", help="Env name", type=str, choices=ENV_NAMES, default=None)
-parser.add_argument("--avf-train-policy", help="Avf train policy", type=str, choices=AVF_TRAIN_POLICIES, default="mlp")
-parser.add_argument("--alpha", help="Statistical significance level for statistical tests", type=float, default=0.05)
-parser.add_argument("--beta", help="Power level for statistical tests", type=float, default=0.8)
-parser.add_argument("--no-adjust", help="Do not adjust p-values when multiple comparisons", action="store_false", default=True)
-parser.add_argument("--distance", help="Compute distance between env configs", action="store_true", default=False)
-parser.add_argument("--files", nargs="+", help="List of files to analyze", required=True)
-parser.add_argument("--names", nargs="+", help="Names associated to files", required=True)
 parser.add_argument(
-    "--hist", help="Histogram plot instead of box plots for failure probability", action="store_true", default=False
+    "--env-name", help="Env name", type=str, choices=ENV_NAMES, default=None
+)
+parser.add_argument(
+    "--avf-train-policy",
+    help="Avf train policy",
+    type=str,
+    choices=AVF_TRAIN_POLICIES,
+    default="mlp",
+)
+parser.add_argument(
+    "--alpha",
+    help="Statistical significance level for statistical tests",
+    type=float,
+    default=0.05,
+)
+parser.add_argument(
+    "--beta", help="Power level for statistical tests", type=float, default=0.8
+)
+parser.add_argument(
+    "--no-adjust",
+    help="Do not adjust p-values when multiple comparisons",
+    action="store_false",
+    default=True,
+)
+parser.add_argument(
+    "--distance",
+    help="Compute distance between env configs",
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
+    "--files", nargs="+", help="List of files to analyze", required=True
+)
+parser.add_argument(
+    "--names", nargs="+", help="Names associated to files", required=True
+)
+parser.add_argument(
+    "--hist",
+    help="Histogram plot instead of box plots for failure probability",
+    action="store_true",
+    default=False,
 )
 parser.add_argument(
     "--hist-weighted",
@@ -43,13 +75,18 @@ parser.add_argument(
     default=False,
 )
 parser.add_argument(
-    "--times-elapsed", help="Box plot of times elapsed and statistical comparison", action="store_true", default=False
+    "--times-elapsed",
+    help="Box plot of times elapsed and statistical comparison",
+    action="store_true",
+    default=False,
 )
 
 args = parser.parse_args()
 
 
-def check_duplicates(d: Dataset, config: EnvConfiguration, all_configs: List[EnvConfiguration]) -> bool:
+def check_duplicates(
+    d: Dataset, config: EnvConfiguration, all_configs: List[EnvConfiguration]
+) -> bool:
     for other_config in all_configs:
         if d.compute_distance(env_config_1=config, env_config_2=other_config) == 0:
             return True
@@ -63,7 +100,9 @@ if __name__ == "__main__":
     logger.info("Args: {}".format(args))
 
     if args.distance:
-        assert args.env_name is not None, "When distance flag is true env_name must be specified"
+        assert (
+            args.env_name is not None
+        ), "When distance flag is true env_name must be specified"
 
     times_elapsed_names = []
     failure_probabilities_names = []
@@ -85,10 +124,12 @@ if __name__ == "__main__":
         raise NotImplementedError("Unknown env name: {}".format(args.env_name))
 
     for i in range(len(args.files)):
-        assert os.path.exists(os.path.join(args.folder, args.files[i])), "{} does not exist".format(
+        assert os.path.exists(
             os.path.join(args.folder, args.files[i])
-        )
-        with open(os.path.join(args.folder, args.files[i]), "r+", encoding="utf-8") as f:
+        ), "{} does not exist".format(os.path.join(args.folder, args.files[i]))
+        with open(
+            os.path.join(args.folder, args.files[i]), "r+", encoding="utf-8"
+        ) as f:
             previous_line = None
             for line in f.readlines():
                 if "INFO:Avf:Generating" in line:
@@ -96,13 +137,29 @@ if __name__ == "__main__":
                     num_trials = int("".join(list(filter(str.isdigit, sentence))))
                 if "Times elapsed (s)" in line:
                     split = line.split(":")
-                    string_nums = split[3].replace(" ", "").replace(",Mean", "").replace("[", "").replace("]", "")
-                    times_elapsed = [float(num_string) for num_string in string_nums.split(",")]
+                    string_nums = (
+                        split[3]
+                        .replace(" ", "")
+                        .replace(",Mean", "")
+                        .replace("[", "")
+                        .replace("]", "")
+                    )
+                    times_elapsed = [
+                        float(num_string) for num_string in string_nums.split(",")
+                    ]
                     times_elapsed_names.append(times_elapsed)
                 if "Failure probabilities" in line:
                     split = line.split(":")
-                    string_nums = split[3].replace(" ", "").replace(",Mean", "").replace("[", "").replace("]", "")
-                    failure_probabilities = [float(num_string) for num_string in string_nums.split(",")]
+                    string_nums = (
+                        split[3]
+                        .replace(" ", "")
+                        .replace(",Mean", "")
+                        .replace("[", "")
+                        .replace("]", "")
+                    )
+                    failure_probabilities = [
+                        float(num_string) for num_string in string_nums.split(",")
+                    ]
                     failure_probabilities_names.append(failure_probabilities)
                 if "Number of evaluation predictions" in line:
                     split = line.split(":")
@@ -113,17 +170,27 @@ if __name__ == "__main__":
                     split = line.split(":")
                     num_experiments = int(split[3].replace(" ", "").split("/")[1])
                 if "max prediction: " in line:
-                    prediction = float(line[line.index("max prediction") :].split(":")[1].replace(" ", ""))
+                    prediction = float(
+                        line[line.index("max prediction") :]
+                        .split(":")[1]
+                        .replace(" ", "")
+                    )
                     if args.names[i] not in predictions_dict:
                         predictions_dict[args.names[i]] = []
                     predictions_dict[args.names[i]].append(prediction)
                 if (
                     "INFO:Avf:Env configuration:" in line
                     and args.distance
-                    and (";" in line or args.names[i] == "random" or "Fallback to random generation" in previous_line)
+                    and (
+                        ";" in line
+                        or args.names[i] == "random"
+                        or "Fallback to random generation" in previous_line
+                    )
                 ):
                     split = line.split(":")
-                    str_env_config = split[3].replace(" ", "").split(";")[0].replace("\n", "")
+                    str_env_config = (
+                        split[3].replace(" ", "").split(";")[0].replace("\n", "")
+                    )
                     if args.names[i] == "random" and "/" in str_env_config:
                         continue
 
@@ -135,13 +202,21 @@ if __name__ == "__main__":
 
                     # TODO: refactor
                     if args.env_name == PARK_ENV_NAME:
-                        env_config = ParkingEnvConfiguration().str_to_config(s=str_env_config)
+                        env_config = ParkingEnvConfiguration().str_to_config(
+                            s=str_env_config
+                        )
                     elif args.env_name == HUMANOID_ENV_NAME:
-                        env_config = HumanoidEnvConfiguration().str_to_config(s=str_env_config)
+                        env_config = HumanoidEnvConfiguration().str_to_config(
+                            s=str_env_config
+                        )
                     elif args.env_name == DONKEY_ENV_NAME:
-                        env_config = DonkeyEnvConfiguration().str_to_config(s=str_env_config)
+                        env_config = DonkeyEnvConfiguration().str_to_config(
+                            s=str_env_config
+                        )
                     else:
-                        raise NotImplementedError("Unknown env name: {}".format(args.env_name))
+                        raise NotImplementedError(
+                            "Unknown env name: {}".format(args.env_name)
+                        )
 
                     env_configurations_dict[args.names[i]].append(env_config)
 
@@ -149,11 +224,21 @@ if __name__ == "__main__":
                         indices_duplicated_configs_dict[args.names[i]] = []
 
                     if str_env_config in str_env_configurations_dict[args.names[i]]:
-                        if check_duplicates(d=dataset, config=env_config, all_configs=env_configurations_dict[args.names[i]]):
+                        if check_duplicates(
+                            d=dataset,
+                            config=env_config,
+                            all_configs=env_configurations_dict[args.names[i]],
+                        ):
                             # it is only for debugging purposes, duplicates have already been removed in the failure
                             # probabilities array
-                            logger.warn("Duplicated configuration: {} in {}".format(str_env_config, args.names[i]))
-                            indices_duplicated_configs_dict[args.names[i]].append(len(env_configurations_dict[args.names[i]]))
+                            logger.warn(
+                                "Duplicated configuration: {} in {}".format(
+                                    str_env_config, args.names[i]
+                                )
+                            )
+                            indices_duplicated_configs_dict[args.names[i]].append(
+                                len(env_configurations_dict[args.names[i]])
+                            )
                     str_env_configurations_dict[args.names[i]].add(str_env_config)
 
                 previous_line = line
@@ -163,9 +248,12 @@ if __name__ == "__main__":
             _ = env_configurations_dict["random"].pop(0)
         if args.distance:
             assert (
-                len(env_configurations_dict[args.names[i]]) * num_trials == num_experiments
+                len(env_configurations_dict[args.names[i]]) * num_trials
+                == num_experiments
             ), "Num configurations {} != {} num experiments for method: {}".format(
-                len(env_configurations_dict[args.names[i]]) * num_trials, num_experiments, args.names[i]
+                len(env_configurations_dict[args.names[i]]) * num_trials,
+                num_experiments,
+                args.names[i],
             )
 
     assert num_experiments != 0, "Num experiments cannot be 0"
@@ -201,7 +289,9 @@ if __name__ == "__main__":
             new_failure_probabilities_names = []
             for i in range(len(failure_probabilities_names)):
                 fp = failure_probabilities_names[i]
-                new_failure_probabilities_names.append(list(map(lambda x: 1 if x > 0.5 else 0, fp)))
+                new_failure_probabilities_names.append(
+                    list(map(lambda x: 1 if x > 0.5 else 0, fp))
+                )
             failure_probabilities_names = new_failure_probabilities_names
 
         failure_names = []
@@ -237,7 +327,9 @@ if __name__ == "__main__":
 
         # statistical tests
         if len(failure_probabilities_names) > 1:
-            odds_ratios_p_values = fisher_exact(*failure_probabilities_names, adjust=not args.no_adjust)
+            odds_ratios_p_values = fisher_exact(
+                *failure_probabilities_names, adjust=not args.no_adjust
+            )
             k = 0
             for i in range(len(args.files)):
                 for j in range(i + 1, len(args.files)):
@@ -252,13 +344,27 @@ if __name__ == "__main__":
                         if not args.no_adjust:
                             print(
                                 "{} ({}) vs {} ({}) adjusted p-value: {}, odds ratio: {} (d: {}, {}), significant".format(
-                                    method_a, s[method_a], method_b, s[method_b], p_value, odds_ratio, effect_size, magnitude
+                                    method_a,
+                                    s[method_a],
+                                    method_b,
+                                    s[method_b],
+                                    p_value,
+                                    odds_ratio,
+                                    effect_size,
+                                    magnitude,
                                 )
                             )
                         else:
                             print(
                                 "{} ({}) vs {} ({}) p-value: {}, odds ratio: {} (d: {}, {}), significant".format(
-                                    method_a, s[method_a], method_b, s[method_b], p_value, odds_ratio, effect_size, magnitude
+                                    method_a,
+                                    s[method_a],
+                                    method_b,
+                                    s[method_b],
+                                    p_value,
+                                    odds_ratio,
+                                    effect_size,
+                                    magnitude,
                                 )
                             )
                     else:
@@ -282,7 +388,11 @@ if __name__ == "__main__":
                                         s[method_b],
                                         p_value,
                                         odds_ratio,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
                             else:
@@ -294,7 +404,11 @@ if __name__ == "__main__":
                                         s[method_b],
                                         p_value,
                                         odds_ratio,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
                         else:
@@ -307,7 +421,11 @@ if __name__ == "__main__":
                                         s[method_b],
                                         p_value,
                                         odds_ratio,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
                             else:
@@ -319,7 +437,11 @@ if __name__ == "__main__":
                                         s[method_b],
                                         p_value,
                                         odds_ratio,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
                     k += 1
@@ -327,17 +449,31 @@ if __name__ == "__main__":
         to_boxplot_dict = dict()
         for i in range(len(args.files)):
             num_failures = sum(
-                [1 if failure_probability > 0.5 else 0 for failure_probability in failure_probabilities_names[i]]
+                [
+                    1 if failure_probability > 0.5 else 0
+                    for failure_probability in failure_probabilities_names[i]
+                ]
             )
-            to_boxplot_dict["{}_{}".format(args.names[i], num_failures)] = failure_probabilities_names[i]
+            to_boxplot_dict[
+                "{}_{}".format(args.names[i], num_failures)
+            ] = failure_probabilities_names[i]
 
         plt.figure()
-        plt.boxplot(x=to_boxplot_dict.values(), labels=to_boxplot_dict.keys(), showmeans=True, vert=False)
-        plt.title("Failure probabilities in {} episodes (env configs)".format(num_experiments))
+        plt.boxplot(
+            x=to_boxplot_dict.values(),
+            labels=to_boxplot_dict.keys(),
+            showmeans=True,
+            vert=False,
+        )
+        plt.title(
+            "Failure probabilities in {} episodes (env configs)".format(num_experiments)
+        )
 
         if args.adjust:
             # statistical tests with p-value adjustments
-            tukey_result = anova_plus_tukey(lists=failure_probabilities_names, groups=args.names, alpha=args.alpha)
+            tukey_result = anova_plus_tukey(
+                lists=failure_probabilities_names, groups=args.names, alpha=args.alpha
+            )
             if tukey_result is None:
                 print("No statistical significance among the groups")
                 # statistical tests
@@ -345,25 +481,42 @@ if __name__ == "__main__":
                     for i in range(len(args.files)):
                         method_a = args.names[i]
                         num_failures_a = sum(
-                            [1 if failure_probability > 0.5 else 0 for failure_probability in failure_probabilities_names[i]]
+                            [
+                                1 if failure_probability > 0.5 else 0
+                                for failure_probability in failure_probabilities_names[
+                                    i
+                                ]
+                            ]
                         )
                         for j in range(i + 1, len(args.files)):
                             num_failures_b = sum(
                                 [
                                     1 if failure_probability > 0.5 else 0
-                                    for failure_probability in failure_probabilities_names[j]
+                                    for failure_probability in failure_probabilities_names[
+                                        j
+                                    ]
                                 ]
                             )
                             method_b = args.names[j]
-                            effect_size, _ = cohend(a=failure_probabilities_names[i], b=failure_probabilities_names[j])
+                            effect_size, _ = cohend(
+                                a=failure_probabilities_names[i],
+                                b=failure_probabilities_names[j],
+                            )
                             if math.isclose(effect_size, 0.0):
                                 print(
                                     "{} ({}) vs {} ({}), not significant: effect size 0".format(
-                                        method_a, num_failures_a, method_b, num_failures_b
+                                        method_a,
+                                        num_failures_a,
+                                        method_b,
+                                        num_failures_b,
                                     )
                                 )
                             else:
-                                sample_size = parametric_power_analysis(effect=effect_size, alpha=args.alpha, power=args.beta)
+                                sample_size = parametric_power_analysis(
+                                    effect=effect_size,
+                                    alpha=args.alpha,
+                                    power=args.beta,
+                                )
                                 if sample_size > num_experiments:
                                     print(
                                         "{} ({}) vs {} ({}), sample size: {}".format(
@@ -371,7 +524,11 @@ if __name__ == "__main__":
                                             num_failures_a,
                                             method_b,
                                             num_failures_b,
-                                            int(sample_size) if sample_size != math.inf else math.inf,
+                                            (
+                                                int(sample_size)
+                                                if sample_size != math.inf
+                                                else math.inf
+                                            ),
                                         )
                                     )
                                 else:
@@ -381,7 +538,11 @@ if __name__ == "__main__":
                                             num_failures_a,
                                             method_b,
                                             num_failures_b,
-                                            int(sample_size) if sample_size != math.inf else math.inf,
+                                            (
+                                                int(sample_size)
+                                                if sample_size != math.inf
+                                                else math.inf
+                                            ),
                                         )
                                     )
             else:
@@ -395,23 +556,44 @@ if __name__ == "__main__":
                     method_a = lst[0]
                     method_b = lst[1]
                     p_value = lst[3]
-                    failure_probabilities_a = tukey_result.data[indices_names[method_a][0] : indices_names[method_a][-1]]
-                    failure_probabilities_b = tukey_result.data[indices_names[method_b][0] : indices_names[method_b][-1]]
+                    failure_probabilities_a = tukey_result.data[
+                        indices_names[method_a][0] : indices_names[method_a][-1]
+                    ]
+                    failure_probabilities_b = tukey_result.data[
+                        indices_names[method_b][0] : indices_names[method_b][-1]
+                    ]
                     num_failures_a = sum(
-                        [1 if failure_probability > 0.5 else 0 for failure_probability in failure_probabilities_a]
+                        [
+                            1 if failure_probability > 0.5 else 0
+                            for failure_probability in failure_probabilities_a
+                        ]
                     )
                     num_failures_b = sum(
-                        [1 if failure_probability > 0.5 else 0 for failure_probability in failure_probabilities_b]
+                        [
+                            1 if failure_probability > 0.5 else 0
+                            for failure_probability in failure_probabilities_b
+                        ]
                     )
                     if p_value < args.alpha:
-                        eff_size_magnitude = vargha_delaney(a=list(failure_probabilities_a), b=list(failure_probabilities_b))
+                        eff_size_magnitude = vargha_delaney(
+                            a=list(failure_probabilities_a),
+                            b=list(failure_probabilities_b),
+                        )
                         print(
                             "{} ({}) vs {} ({}), adjusted p-value: {}, effect size: {}, significant".format(
-                                method_a, num_failures_a, method_b, num_failures_b, p_value, eff_size_magnitude
+                                method_a,
+                                num_failures_a,
+                                method_b,
+                                num_failures_b,
+                                p_value,
+                                eff_size_magnitude,
                             )
                         )
                     else:
-                        effect_size, _ = cohend(a=list(failure_probabilities_a), b=list(failure_probabilities_b))
+                        effect_size, _ = cohend(
+                            a=list(failure_probabilities_a),
+                            b=list(failure_probabilities_b),
+                        )
                         if math.isclose(effect_size, 0.0):
                             print(
                                 "{} ({}) vs {} ({}), not significant: effect size 0".format(
@@ -419,7 +601,9 @@ if __name__ == "__main__":
                                 )
                             )
                         else:
-                            sample_size = parametric_power_analysis(effect=effect_size, alpha=args.alpha, power=args.beta)
+                            sample_size = parametric_power_analysis(
+                                effect=effect_size, alpha=args.alpha, power=args.beta
+                            )
                             if sample_size > num_experiments:
                                 print(
                                     "{} ({}) vs {} ({}), sample size: {}".format(
@@ -427,7 +611,11 @@ if __name__ == "__main__":
                                         num_failures_a,
                                         method_b,
                                         num_failures_b,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
                             else:
@@ -437,24 +625,43 @@ if __name__ == "__main__":
                                         num_failures_a,
                                         method_b,
                                         num_failures_b,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
         else:
             for i in range(len(failure_probabilities_names)):
                 fp_a = failure_probabilities_names[i]
                 method_a = args.names[i]
-                num_failures_a = sum([1 if failure_probability > 0.5 else 0 for failure_probability in fp_a])
+                num_failures_a = sum(
+                    [
+                        1 if failure_probability > 0.5 else 0
+                        for failure_probability in fp_a
+                    ]
+                )
                 for j in range(i + 1, len(failure_probabilities_names)):
                     fp_b = failure_probabilities_names[j]
                     method_b = args.names[j]
-                    num_failures_b = sum([1 if failure_probability > 0.5 else 0 for failure_probability in fp_b])
+                    num_failures_b = sum(
+                        [
+                            1 if failure_probability > 0.5 else 0
+                            for failure_probability in fp_b
+                        ]
+                    )
                     _, p_value = mannwhitney_test(a=list(fp_a), b=list(fp_b))
                     if p_value < args.alpha:
                         eff_size_magnitude = vargha_delaney(a=list(fp_a), b=list(fp_b))
                         print(
                             "{} ({}) vs {} ({}), p-value: {}, effect size: {}, significant".format(
-                                method_a, num_failures_a, method_b, num_failures_b, p_value, eff_size_magnitude
+                                method_a,
+                                num_failures_a,
+                                method_b,
+                                num_failures_b,
+                                p_value,
+                                eff_size_magnitude,
                             )
                         )
                     else:
@@ -466,7 +673,9 @@ if __name__ == "__main__":
                                 )
                             )
                         else:
-                            sample_size = parametric_power_analysis(effect=effect_size, alpha=args.alpha, power=args.beta)
+                            sample_size = parametric_power_analysis(
+                                effect=effect_size, alpha=args.alpha, power=args.beta
+                            )
                             if sample_size > num_experiments:
                                 print(
                                     "{} ({}) vs {} ({}), sample size: {}".format(
@@ -474,7 +683,11 @@ if __name__ == "__main__":
                                         num_failures_a,
                                         method_b,
                                         num_failures_b,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
                             else:
@@ -484,7 +697,11 @@ if __name__ == "__main__":
                                         num_failures_a,
                                         method_b,
                                         num_failures_b,
-                                        int(sample_size) if sample_size != math.inf else math.inf,
+                                        (
+                                            int(sample_size)
+                                            if sample_size != math.inf
+                                            else math.inf
+                                        ),
                                     )
                                 )
 
@@ -494,17 +711,29 @@ if __name__ == "__main__":
             # remove first element which includes preprocessing of the dataset (outlier for some techniques)
             to_boxplot_dict[args.names[i]] = times_elapsed_names[i][1:]
         plt.figure()
-        plt.boxplot(x=to_boxplot_dict.values(), labels=to_boxplot_dict.keys(), showmeans=True, vert=False)
+        plt.boxplot(
+            x=to_boxplot_dict.values(),
+            labels=to_boxplot_dict.keys(),
+            showmeans=True,
+            vert=False,
+        )
         plt.title("Times elapsed to generate env configuration")
 
     if len(predictions_dict.keys()) > 0:
         plt.figure()
-        plt.boxplot(x=predictions_dict.values(), labels=predictions_dict.keys(), showmeans=True, vert=False)
+        plt.boxplot(
+            x=predictions_dict.values(),
+            labels=predictions_dict.keys(),
+            showmeans=True,
+            vert=False,
+        )
         plt.title("Max predictions")
 
     if args.distance:
 
-        pr_in_keys = len([key for key in env_configurations_dict.keys() if "pr" in key]) > 0
+        pr_in_keys = (
+            len([key for key in env_configurations_dict.keys() if "pr" in key]) > 0
+        )
         if pr_in_keys:
             pr_key = [key for key in env_configurations_dict.keys() if "pr" in key]
             logger.info("Considering {} as pr for comparison".format(pr_key[0]))
@@ -519,7 +748,8 @@ if __name__ == "__main__":
                         for k in range(j, len(env_configurations_other)):
                             env_configuration_other = env_configurations_other[k]
                             distance = dataset.compute_distance(
-                                env_config_1=env_configuration_pr, env_config_2=env_configuration_other
+                                env_config_1=env_configuration_pr,
+                                env_config_2=env_configuration_other,
                             )
                             if name not in distances_dict:
                                 distances_dict[name] = []
@@ -527,7 +757,9 @@ if __name__ == "__main__":
                                 distances_zero_dict[name] = 0
                             distances_dict[name].append(distance)
                             if distance == 0.0:
-                                assert env_configuration_pr.get_str() in env_config_fp_pr, "Env config {} is not in ".format(
+                                assert (
+                                    env_configuration_pr.get_str() in env_config_fp_pr
+                                ), "Env config {} is not in ".format(
                                     env_configuration_pr.get_str()
                                 )
                                 fp = env_config_fp_pr[env_configuration_pr.get_str()]
@@ -559,7 +791,9 @@ if __name__ == "__main__":
         for i in range(len(times_elapsed_names)):
             filtered_times_elapsed_names.append(times_elapsed_names[i][1:])
 
-        tukey_result = anova_plus_tukey(lists=filtered_times_elapsed_names, groups=args.names, alpha=args.alpha)
+        tukey_result = anova_plus_tukey(
+            lists=filtered_times_elapsed_names, groups=args.names, alpha=args.alpha
+        )
         if tukey_result is None:
             print("No statistical significance among the groups")
         else:
@@ -573,10 +807,16 @@ if __name__ == "__main__":
                 method_a = lst[0]
                 method_b = lst[1]
                 p_value = lst[3]
-                times_elapsed_b = tukey_result.data[indices_names[method_b][0] : indices_names[method_b][-1]]
-                times_elapsed_a = tukey_result.data[indices_names[method_a][0] : indices_names[method_a][-1]]
+                times_elapsed_b = tukey_result.data[
+                    indices_names[method_b][0] : indices_names[method_b][-1]
+                ]
+                times_elapsed_a = tukey_result.data[
+                    indices_names[method_a][0] : indices_names[method_a][-1]
+                ]
                 if p_value < args.alpha:
-                    eff_size_magnitude = vargha_delaney(a=list(times_elapsed_a), b=list(times_elapsed_b))
+                    eff_size_magnitude = vargha_delaney(
+                        a=list(times_elapsed_a), b=list(times_elapsed_b)
+                    )
                     print(
                         "{} ({}) vs {} ({}), adjusted p-value: {}, effect size: ({}, {}), significant".format(
                             method_a,
@@ -589,15 +829,22 @@ if __name__ == "__main__":
                         )
                     )
                 else:
-                    effect_size, _ = cohend(a=list(times_elapsed_a), b=list(times_elapsed_b))
+                    effect_size, _ = cohend(
+                        a=list(times_elapsed_a), b=list(times_elapsed_b)
+                    )
                     if math.isclose(effect_size, 0.0):
                         print(
                             "{} ({}) vs {} ({}), not significant: effect size 0".format(
-                                method_a, np.mean(times_elapsed_a), method_b, np.mean(times_elapsed_b)
+                                method_a,
+                                np.mean(times_elapsed_a),
+                                method_b,
+                                np.mean(times_elapsed_b),
                             )
                         )
                     else:
-                        sample_size = parametric_power_analysis(effect=effect_size, alpha=args.alpha, power=args.beta)
+                        sample_size = parametric_power_analysis(
+                            effect=effect_size, alpha=args.alpha, power=args.beta
+                        )
                         if sample_size > num_experiments:
                             print(
                                 "{} ({}) vs {} ({}), sample size: {}".format(
@@ -605,7 +852,11 @@ if __name__ == "__main__":
                                     np.mean(times_elapsed_a),
                                     method_b,
                                     np.mean(times_elapsed_b),
-                                    int(sample_size) if sample_size != math.inf else math.inf,
+                                    (
+                                        int(sample_size)
+                                        if sample_size != math.inf
+                                        else math.inf
+                                    ),
                                 )
                             )
                         else:
@@ -615,7 +866,11 @@ if __name__ == "__main__":
                                     np.mean(times_elapsed_a),
                                     method_b,
                                     np.mean(times_elapsed_b),
-                                    int(sample_size) if sample_size != math.inf else math.inf,
+                                    (
+                                        int(sample_size)
+                                        if sample_size != math.inf
+                                        else math.inf
+                                    ),
                                 )
                             )
 

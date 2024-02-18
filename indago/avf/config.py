@@ -13,7 +13,13 @@ AVF_TEST_POLICIES_WITH_DNN = [
     "ga_saliency_failure",
     "nn",
 ]
-AVF_TEST_POLICIES = ["prioritized_replay", "test", "random", "replay_test_failure", *AVF_TEST_POLICIES_WITH_DNN]
+AVF_TEST_POLICIES = [
+    "prioritized_replay",
+    "test",
+    "random",
+    "replay_test_failure",
+    *AVF_TEST_POLICIES_WITH_DNN,
+]
 
 DNN_SAMPLING_POLICIES = ["original"]
 # NN parameters

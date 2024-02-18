@@ -21,7 +21,12 @@ class DonkeyDataset(Dataset):
         mapping = dict()
         donkey_env_configuration = cast(DonkeyEnvConfiguration, env_configuration)
         mapping["commands"] = list(range(0, donkey_env_configuration.get_length()))
-        mapping["values"] = list(range(donkey_env_configuration.get_length(), donkey_env_configuration.get_length() * 2))
+        mapping["values"] = list(
+            range(
+                donkey_env_configuration.get_length(),
+                donkey_env_configuration.get_length() * 2,
+            )
+        )
         return mapping
 
     @staticmethod
@@ -32,7 +37,9 @@ class DonkeyDataset(Dataset):
         values = np.zeros(shape=(donkey_env_configuration.get_length(),))
         for i in range(len(track_elements)):
             ce = track_elements[i]
-            assert ce.command.name in COMMAND_NAME_VALUE_DICT, "Unknown command {}".format(ce.command.name)
+            assert (
+                ce.command.name in COMMAND_NAME_VALUE_DICT
+            ), "Unknown command {}".format(ce.command.name)
             commands[i] = COMMAND_NAME_VALUE_DICT[ce.command.name]
             values[i] = ce.value
         return np.concatenate((commands, values), axis=0)
@@ -42,7 +49,9 @@ class DonkeyDataset(Dataset):
         data = self.dataset[0]
         env_config = cast(DonkeyEnvConfiguration, data.training_logs.get_config())
         res = ["command_{}".format(i) for i in range(len(env_config.track_elements))]
-        res.extend(["value_{}".format(i) for i in range(len(env_config.track_elements))])
+        res.extend(
+            ["value_{}".format(i) for i in range(len(env_config.track_elements))]
+        )
         return res
 
     @staticmethod
@@ -61,19 +70,32 @@ class DonkeyDataset(Dataset):
         # return input_scaler, None
         return None, None
 
-    def get_original_env_configuration(self, env_config_transformed: np.ndarray) -> EnvConfiguration:
+    def get_original_env_configuration(
+        self, env_config_transformed: np.ndarray
+    ) -> EnvConfiguration:
         donkey_env_configuration = DonkeyEnvConfiguration()
         commands = env_config_transformed[: donkey_env_configuration.get_length()]
-        values = env_config_transformed[donkey_env_configuration.get_length() : donkey_env_configuration.get_length() * 2]
+        values = env_config_transformed[
+            donkey_env_configuration.get_length() : donkey_env_configuration.get_length()
+            * 2
+        ]
         track_elements = []
         for i in range(donkey_env_configuration.get_length()):
             ce = track_elements[i]
-            command, _ = parse_command(command_name=VALUE_COMMAND_NAME_DICT[commands[i]], command_value="dummy")
+            command, _ = parse_command(
+                command_name=VALUE_COMMAND_NAME_DICT[commands[i]], command_value="dummy"
+            )
             value = values[i]
             track_elements.append(TrackElem(command=command, value=value))
         return DonkeyEnvConfiguration(track_elements=track_elements)
 
-    def compute_distance(self, env_config_1: EnvConfiguration, env_config_2: EnvConfiguration) -> float:
-        env_config_1_transformed = self.transform_env_configuration(env_configuration=env_config_1, policy=self.policy)
-        env_config_2_transformed = self.transform_env_configuration(env_configuration=env_config_2, policy=self.policy)
+    def compute_distance(
+        self, env_config_1: EnvConfiguration, env_config_2: EnvConfiguration
+    ) -> float:
+        env_config_1_transformed = self.transform_env_configuration(
+            env_configuration=env_config_1, policy=self.policy
+        )
+        env_config_2_transformed = self.transform_env_configuration(
+            env_configuration=env_config_2, policy=self.policy
+        )
         return euclidean(u=env_config_1_transformed, v=env_config_2_transformed)

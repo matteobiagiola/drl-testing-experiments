@@ -22,6 +22,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 # Original author: Tawn Kramer
 import base64
 import copy
@@ -36,7 +37,15 @@ from PIL import Image
 
 from indago.avf.avf import Avf
 from indago.avf.env_configuration import EnvConfiguration
-from indago.config import CRASH_SPEED_WEIGHT, INPUT_DIM, MAX_CTE_ERROR, MAX_THROTTLE, MIN_THROTTLE, REWARD_CRASH, ROI
+from indago.config import (
+    CRASH_SPEED_WEIGHT,
+    INPUT_DIM,
+    MAX_CTE_ERROR,
+    MAX_THROTTLE,
+    MIN_THROTTLE,
+    REWARD_CRASH,
+    ROI,
+)
 from indago.envs.donkey.core.fps import FPSTimer
 from indago.envs.donkey.core.message import IMesgHandler
 from indago.envs.donkey.core.sim_client import SimClient
@@ -70,7 +79,11 @@ class DonkeyUnitySimController:
 
         # Socket message handler
         self.handler = DonkeyUnitySimHandler(
-            avf=avf, seed=seed, simulation_mul=simulation_mul, vae=vae, simulator_scene=simulator_scene
+            avf=avf,
+            seed=seed,
+            simulation_mul=simulation_mul,
+            vae=vae,
+            simulator_scene=simulator_scene,
         )
 
         self.client = SimClient(self.address, self.socket_local_address, self.handler)
@@ -89,7 +102,8 @@ class DonkeyUnitySimController:
             sleep_time += 0.1
             if sleep_time > 3:
                 self.logger.info(
-                    "Waiting for sim to start..." "if the simulation is running, press EXIT to go back to the menu"
+                    "Waiting for sim to start..."
+                    "if the simulation is running, press EXIT to go back to the menu"
                 )
         self.regen_track()
 
@@ -139,7 +153,14 @@ class DonkeyUnitySimHandler(IMesgHandler):
     Socket message handler.
     """
 
-    def __init__(self, seed: int, vae: VAE, avf: Avf, simulation_mul: int, simulator_scene: SimulatorScene):
+    def __init__(
+        self,
+        seed: int,
+        vae: VAE,
+        avf: Avf,
+        simulation_mul: int,
+        simulator_scene: SimulatorScene,
+    ):
 
         self.logger = Log("DonkeyUnitySimHandler")
         self.vae = vae
@@ -168,7 +189,9 @@ class DonkeyUnitySimHandler(IMesgHandler):
         self.materials_queue_size = 10
         self.max_frames_on_ground = 30
         if MAX_THROTTLE < 0.5 and self.max_frames_on_ground == 30:
-            self.logger.warn("Change max_frames_on_ground since it was set with MAX_THROTTLE = 0.5")
+            self.logger.warn(
+                "Change max_frames_on_ground since it was set with MAX_THROTTLE = 0.5"
+            )
 
         self.initialize_materials()
         self.index_materials = 0
@@ -201,6 +224,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
         self.steerings: List[float] = []
         self.speeds: List[float] = []
         self.ctes: List[float] = []
+        self.fitness_values: List[float] = []
 
         self.steering_angle = 0.0
         self.current_step = 0
@@ -264,14 +288,14 @@ class DonkeyUnitySimHandler(IMesgHandler):
         offset_z=0,
         rot_x=0,
     ):
-        """ Camera config
-            set any field to Zero to get the default camera setting.
-            offset_x moves camera left/right
-            offset_y moves camera up/down
-            offset_z moves camera forward/back
-            rot_x will rotate the camera
-            with fish_eye_x/y == 0.0 then you get no distortion
-            img_enc can be one of JPG|PNG|TGA
+        """Camera config
+        set any field to Zero to get the default camera setting.
+        offset_x moves camera left/right
+        offset_y moves camera up/down
+        offset_z moves camera forward/back
+        rot_x will rotate the camera
+        with fish_eye_x/y == 0.0 then you get no distortion
+        img_enc can be one of JPG|PNG|TGA
         """
         msg = {
             "msg_type": "cam_config",
@@ -328,7 +352,6 @@ class DonkeyUnitySimHandler(IMesgHandler):
         :param message: (dict)
         """
         if "msg_type" not in message:
-            # print('Expected msg_type field')
             return
 
         msg_type = message["msg_type"]
@@ -337,62 +360,6 @@ class DonkeyUnitySimHandler(IMesgHandler):
         else:
             print("Unknown message type", msg_type)
 
-    # def reset(self, end_of_episode: bool = False):
-    #     """
-    #     Global reset, notably it
-    #     resets car to initial position.
-    #     """
-    #
-    #     if not end_of_episode:
-    #         self.generate_track()
-    #
-    #     self.image_array = np.zeros(self.camera_img_size)
-    #     self.last_obs = None
-    #     self.hit = "none"
-    #     self.steering = 0.0
-    #     self.last_steering = 0.0
-    #     self.initialize_materials()
-    #     self.index_materials = 0
-    #     self.cte = 0.0
-    #     self.pos_x = 0.0
-    #     self.pos_y = 0.0
-    #     self.pos_z = 0.0
-    #
-    #     self.rot_x = 0.0
-    #     self.rot_y = 0.0
-    #     self.rot_z = 0.0
-    #     self.rot_w = 0.0
-    #
-    #     # AVF logs
-    #     self.actions.clear()
-    #     self.rewards.clear()
-    #     self.images.clear()
-    #     self.car_trajectory.clear()
-    #     self.is_success = 0
-    #     self.reconstruction_losses.clear()
-    #     self.agent_state.clear()
-    #     self.speeds.clear()
-    #     self.steerings.clear()
-    #     self.ctes.clear()
-    #
-    #     self.current_step = 0
-    #
-    #     self.total_nodes = 0
-    #     self.reward = 0.0
-    #     self.prev_reward = 0.0
-    #     self.waypoints_crossed.clear()
-    #
-    #     # self.send_control(0, 0)  # causes car not to reset in levels other than 0
-    #     # time.sleep(1.0)
-    #
-    #     # This seems to work well until n_envs = 4; if the sleep is too small there are issues with the simulator
-    #     # in terms of not being able to control the car for some episodes (in the monitor logs printed during training
-    #     # some episodes are 1 timestep long and a negative reward, which means that the reset was not done correctly)
-    #     # time.sleep(0.25)
-    #     self.send_reset_car()
-    #     time.sleep(0.25)
-
-    # RESET VERSION WITH PAUSE/RESTART SIMULATOR
     def reset(self, end_of_episode: bool = False):
         """
         Global reset, notably it
@@ -432,6 +399,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
         self.steerings: List[float] = []
         self.speeds: List[float] = []
         self.ctes: List[float] = []
+        self.fitness_values: List[float] = []
 
         self.current_step = 0
 
@@ -466,47 +434,6 @@ class DonkeyUnitySimHandler(IMesgHandler):
         self.total_steps += 1
         self.send_control(self.steering, throttle)
 
-    # def observe(self):
-    #     while self.last_obs is self.image_array:
-    #         time.sleep(1.0 / 120.0)
-    #
-    #     self.last_obs = self.image_array
-    #     observation = self.image_array
-    #     _, loss = self.vae.get_reconstruction_and_loss(observation=observation, roi=False)
-    #     self.reconstruction_losses.append(loss)
-    #
-    #     done = self.is_game_over()
-    #     reward = self.calc_reward(done)
-    #     self.last_steering = self.steering
-    #
-    #     if done:
-    #         self.send_pause_simulation()
-    #         donkey_training_logs = DonkeyTrainingLogs(
-    #             is_success=self.is_success,
-    #             agent_state=self.agent_state,
-    #             actions=self.actions,
-    #             rewards=self.rewards,
-    #             config=self.env_config.str_to_config(s=self.current_track_string),
-    #             car_trajectory=self.car_trajectory,
-    #             images=self.images,
-    #             reconstruction_losses=self.reconstruction_losses,
-    #             speeds=self.speeds,
-    #             steerings=self.steerings,
-    #             ctes=self.ctes
-    #         )
-    #         self.avf.store_training_logs(training_logs=donkey_training_logs)
-    #         self.avf.store_testing_logs(training_logs=donkey_training_logs)
-    #
-    #     self.rewards.append(reward)
-    #     info = {
-    #         'is_success': self.is_success,
-    #         'speed': self.speed,
-    #         'steering_angle': self.steering_angle
-    #     }
-    #     self.control_timer.on_frame()
-    #     return observation, reward, done, info
-
-    # OBSERVE VERSION WITH PAUSE/RESTART SIMULATOR
     def observe(self):
         try:
             self.frame_queue.get(timeout=3)
@@ -516,7 +443,9 @@ class DonkeyUnitySimHandler(IMesgHandler):
 
         self.last_obs = self.image_array
         observation = self.image_array
-        _, loss = self.vae.get_reconstruction_and_loss(observation=observation, roi=False)
+        _, loss = self.vae.get_reconstruction_and_loss(
+            observation=observation, roi=False
+        )
         self.reconstruction_losses.append(loss)
 
         done = self.is_game_over()
@@ -528,15 +457,10 @@ class DonkeyUnitySimHandler(IMesgHandler):
             donkey_training_logs = DonkeyTrainingLogs(
                 is_success=self.is_success,
                 agent_state=self.agent_state,
-                actions=self.actions,
-                rewards=self.rewards,
                 config=self.configuration.str_to_config(s=self.current_track_string),
                 car_trajectory=self.car_trajectory,
                 images=self.images,
-                reconstruction_losses=self.reconstruction_losses,
-                speeds=self.speeds,
-                steerings=self.steerings,
-                ctes=self.ctes,
+                fitness_values=self.fitness_values,
             )
             self.avf.store_training_logs(training_logs=donkey_training_logs)
             # FIXME: maybe observe is called multiple times in testing mode and we want to avoid training logs
@@ -546,7 +470,14 @@ class DonkeyUnitySimHandler(IMesgHandler):
                 self.avf.store_testing_logs(training_logs=donkey_training_logs)
         else:
             self.rewards.append(reward)
-        info = {"is_success": self.is_success, "speed": self.speed, "steering_angle": self.steering_angle}
+        info = {
+            "is_success": self.is_success,
+            "speed": self.speed,
+            "steering_angle": self.steering_angle,
+        }
+
+        if len(self.fitness_values) > 0:
+            info["fitness"] = min(self.fitness_values)
 
         self.control_timer.on_frame()
         return observation, reward, done, info
@@ -555,14 +486,13 @@ class DonkeyUnitySimHandler(IMesgHandler):
         """
         :return: (bool)
         """
-        check_ground = self.check_ground()
         check_distance_from_center = self.check_distance_from_center()
         check_line = self.check_line()
-        if check_distance_from_center and check_ground:
+        if check_distance_from_center:
             self.is_success = 0
         elif check_line:
             self.is_success = 1
-        return (check_distance_from_center and check_ground) or check_line
+        return check_distance_from_center or check_line
 
     def calc_reward(self, done):
         """
@@ -572,21 +502,32 @@ class DonkeyUnitySimHandler(IMesgHandler):
         """
 
         if done:
-            # self.logger.debug('Episode steps: {}'.format(self.current_step))
             if self.is_success == 0:
-                norm_throttle = (self.last_throttle - MIN_THROTTLE) / (MAX_THROTTLE - MIN_THROTTLE)
+                norm_throttle = (self.last_throttle - MIN_THROTTLE) / (
+                    MAX_THROTTLE - MIN_THROTTLE
+                )
                 return REWARD_CRASH - CRASH_SPEED_WEIGHT * norm_throttle
 
         waypoint_crossed_reward = 0
-        if self.total_nodes > 0 and "waypointline_" in self.hit and "waypointline_last_" not in self.hit:
+        if (
+            self.total_nodes > 0
+            and "waypointline_" in self.hit
+            and "waypointline_last_" not in self.hit
+        ):
             if self.hit not in self.waypoints_crossed:
                 waypoint_crossed_reward = (
-                    100 * (self.simulation_mul / 4) / self.total_nodes if self.simulation_mul > 4 else 100 / self.total_nodes
+                    200 * (self.simulation_mul / 4) / self.total_nodes
+                    if self.simulation_mul > 4
+                    else 200 / self.total_nodes
                 )
                 self.waypoints_crossed.append(self.hit)
 
         # cte_reward can be higher when the car is driving in the opposite direction; cte messes up
-        cte_reward = 0.1 * self.simulation_mul * min(abs((self.cte / self.max_cte_error) + 0.2), 0.5)
+        cte_reward = (
+            0.1
+            * self.simulation_mul
+            * min(abs((self.cte / self.max_cte_error) + 0.2), 0.5)
+        )
         return (-0.1 * self.simulation_mul) + waypoint_crossed_reward - cte_reward
 
     # ------ Socket interface ----------- #
@@ -597,7 +538,6 @@ class DonkeyUnitySimHandler(IMesgHandler):
 
         :param data: (dict)
         """
-        # self.send_restart_simulation()
         img_string = data["image"]
         self.images.append(img_string)
         image = Image.open(BytesIO(base64.b64decode(img_string)))
@@ -636,10 +576,20 @@ class DonkeyUnitySimHandler(IMesgHandler):
         # It should be setup in the 3 scenes available now.
         self.cte = data["cte"]
         self.ctes.append(copy.deepcopy(self.cte))
+
+        check_distance_from_center = self.check_distance_from_center()
+        if check_distance_from_center:
+            self.fitness_values.append(0.0)
+        else:
+            fitness_value = (1 - (abs(self.cte / self.max_cte_error + 0.2) - 0.6)) - 1
+            assert (
+                0 <= fitness_value <= 1
+            ), f"Fitness value not in bounds: {fitness_value}"
+            self.fitness_values.append(fitness_value)
+
         self.total_nodes = data["totalNodes"]
         self.hit = data["hit"]
 
-        # ON_TELEMETRY VERSION WITH PAUSE/RESTART SIMULATOR
         if self.start and self.frame_count % 1 == 0:
             self.observation_timer.on_frame()
             self.frame_queue.put(1)
@@ -667,7 +617,9 @@ class DonkeyUnitySimHandler(IMesgHandler):
         """
         if data is not None:
             names = data["scene_names"]
-            assert self.simulator_scene.get_scene_name() in names, "{} not in the list of possible scenes {}".format(
+            assert (
+                self.simulator_scene.get_scene_name() in names
+            ), "{} not in the list of possible scenes {}".format(
                 self.simulator_scene.get_scene_name(), names
             )
             self.send_load_scene(self.simulator_scene.get_scene_name())
@@ -675,12 +627,16 @@ class DonkeyUnitySimHandler(IMesgHandler):
     def generate_track(self):
         self.configuration = self.avf.generate_env_configuration()
         track_string = self.configuration.get_str()
-        self.configuration.update_implementation(track=self.configuration.str_to_config(s=track_string).track_elements)
+        self.configuration.update_implementation(
+            track=self.configuration.str_to_config(s=track_string).track_elements
+        )
         self.send_regen_track(track_string=track_string)
         self.track_strings.append(track_string)
         max_iterations = 1000
         time_elapsed = 0
-        while self.track_strings[-1] != self.current_track_string and max_iterations > 0:
+        while (
+            self.track_strings[-1] != self.current_track_string and max_iterations > 0
+        ):
             time.sleep(0.1)
             time_elapsed += 0.1
             if time_elapsed >= 1.0:
@@ -689,7 +645,9 @@ class DonkeyUnitySimHandler(IMesgHandler):
             max_iterations -= 1
 
         if max_iterations == 0:
-            assert self.track_strings[-1] == self.current_track_string, "Track generated {} != {} Track deployed".format(
+            assert (
+                self.track_strings[-1] == self.current_track_string
+            ), "Track generated {} != {} Track deployed".format(
                 self.track_strings[-1], self.current_track_string
             )
 
@@ -739,7 +697,12 @@ class DonkeyUnitySimHandler(IMesgHandler):
                 "brake": brake.__str__(),
             }
         else:
-            msg = {"msg_type": "control", "steering": steer.__str__(), "throttle": throttle.__str__(), "brake": "0.0"}
+            msg = {
+                "msg_type": "control",
+                "steering": steer.__str__(),
+                "throttle": throttle.__str__(),
+                "brake": "0.0",
+            }
         self.queue_message(msg)
 
     def send_reset_random_waypoint(self):
