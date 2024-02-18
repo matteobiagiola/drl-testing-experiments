@@ -1,3 +1,6 @@
+| :zap:        Models coming soon!        :zap: |
+|---------------------------------------------------------------------|
+
 # Replication Package for the paper "Testing of Deep Reinforcement Learning Agents with Surrogate Models". 
 
 This Readme provides instructions on how to train agents for the three tasks from scratch and how to test them using the codebase.
@@ -17,9 +20,6 @@ cd indago
 Docker build tested with version (MacOS and Ubuntu 22.04 LTS):
 
 `Docker version 25.0.3`
-
-| :zap:        Models coming soon!        :zap: |
-|---------------------------------------------------------------------|
 
 ## 2. Training agents
 
