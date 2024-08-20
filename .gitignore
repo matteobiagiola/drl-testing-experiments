@@ -116,3 +116,4 @@ venv.bak/
 
 *.py~
 .DS_Store
+unitylog.txt

@@ -1,21 +1,31 @@
-| :zap:        Models coming soon!        :zap: |
-|---------------------------------------------------------------------|
-
 # Replication Package for the paper "Testing of Deep Reinforcement Learning Agents with Surrogate Models". 
 
 This Readme provides instructions on how to train agents for the three tasks from scratch and how to test them using the codebase.
 
-## 1. Docker configuration
+## 1. Docker image
 
 ```commandline
-docker build --no-cache -t indago:latest .
-docker run -it --mount type=bind,source="$(pwd)",target=/home/indago --name indago-container -p 6006:6006 indago:latest
-cd indago
+docker run --rm -it --mount type=bind,source="$(pwd)",target=/home/indago --workdir /home/indago --name indago-container -p 6006:6006 dockercontainervm/indago:0.1.0
 # do not activate the environment before running the run_smoke_test.sh script
 ./run_smoke_test.sh --env-name parking
 ./run_smoke_test.sh --env-name humanoid
 ./run_smoke_test.sh --env-name donkey
 ```
+
+The docker command downloads the docker image, which is approximately of size 5GB.
+
+## 1.1 (Optional) Docker build
+
+```commandline
+docker build --no-cache -t indago:latest .
+docker run --rm -it --mount type=bind,source="$(pwd)",target=/home/indago --workdir /home/indago --name indago-container -p 6006:6006 indago:latest
+# do not activate the environment before running the run_smoke_test.sh script
+./run_smoke_test.sh --env-name parking
+./run_smoke_test.sh --env-name humanoid
+./run_smoke_test.sh --env-name donkey
+```
+
+The docker command builds the docker image, which is approximately of size 5GB.
 
 Docker build tested with version (MacOS and Ubuntu 22.04 LTS):
 
@@ -26,7 +36,6 @@ Docker build tested with version (MacOS and Ubuntu 22.04 LTS):
 To activate the environment inside the docker container type:
 
 ```commandline
-cd /home/indago
 conda activate indago
 ```
 
@@ -51,7 +60,6 @@ to train the Humanoid agent with the default hyperparameters (`hyperparams/indag
 Type:
 
 ```commandline
-cd /home/indago
 xvfb-run -a python -m indago.train --algo sac -tb logs/tensorboard \
 	--seed 2646669604 --env-name donkey \
 	--env-id DonkeyVAE-v0 --log-interval 1000 \
@@ -104,7 +112,6 @@ Open your browser at `localhost:6006`. On the left-hand side of the screen look 
 Type:
 
 ```commandline
-cd /home/indago
 conda activate indago
 ```
 
@@ -221,7 +228,6 @@ Moreover, the python command needs to be prepended by `xvfb-run -a` to enable re
 Type:
 
 ```commandline
-cd /home/indago
 conda activate indago
 ```
 
@@ -422,7 +428,6 @@ python -m indago.experiments --algo her \
 Type:
 
 ```commandline
-cd /home/indago
 conda activate indago
 ```
 
@@ -599,4 +604,8 @@ python -m indago.diversity \
 ```
 
 to compute output coverage and entropy.
+
+## 6. Data
+
+The pretrained agents for the three environments are available for download [here](https://drive.switch.ch/index.php/s/pWku5M8uTCKwaZi).
 
