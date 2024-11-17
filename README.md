@@ -613,7 +613,7 @@ The pretrained agents for the three environments are available for download [her
 
 To cite this repository in publications:
 
-```
+```bibtex
 @article{DBLP:journals/tosem/BiagiolaT24,
 	title        = {Testing of Deep Reinforcement Learning Agents with Surrogate Models},
 	author       = {Matteo Biagiola and Paolo Tonella},
