@@ -609,3 +609,23 @@ to compute output coverage and entropy.
 
 The pretrained agents for the three environments are available for download [here](https://drive.switch.ch/index.php/s/pWku5M8uTCKwaZi).
 
+## 7. Citing the Project
+
+To cite this repository in publications:
+
+```
+@article{DBLP:journals/tosem/BiagiolaT24,
+	title        = {Testing of Deep Reinforcement Learning Agents with Surrogate Models},
+	author       = {Matteo Biagiola and Paolo Tonella},
+	year         = 2024,
+	journal      = {{ACM} Trans. Softw. Eng. Methodol.},
+	volume       = 33,
+	number       = 3,
+	pages        = {73:1--73:33},
+	doi          = {10.1145/3631970},
+	url          = {https://doi.org/10.1145/3631970},
+	timestamp    = {Mon, 15 Apr 2024 08:26:14 +0200},
+	biburl       = {https://dblp.org/rec/journals/tosem/BiagiolaT24.bib},
+	bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+```
